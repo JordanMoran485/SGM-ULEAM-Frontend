@@ -17,6 +17,7 @@ export const Colors = {
     tabIconDefault: '#687076',
     tabIconSelected: tintColorLight,
   },
+  
   dark: {
     text: '#ECEDEE',
     background: '#151718',
@@ -26,6 +27,8 @@ export const Colors = {
     tabIconSelected: tintColorDark,
   },
 };
+
+
 
 export const Fonts = Platform.select({
   ios: {
