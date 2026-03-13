@@ -2,8 +2,13 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
+
+  const insets = useSafeAreaInsets();
+
+
   return (
     <Tabs
       screenOptions={{
@@ -15,17 +20,10 @@ export default function TabLayout() {
         // Estilo de la barra de botones
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          elevation: 20, // Sombra en Android
-          shadowColor: '#000', // Sombra en iOS
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 10,
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+          borderTopWidth: 20,
+          height: Platform.OS === 'ios' ? 70 + insets.bottom : 75 + insets.bottom,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
-          borderTopLeftRadius: 25, // Bordes redondeados arriba
-          borderTopRightRadius: 25,
           position: 'absolute', // Hace que la barra parezca flotar
         },
         tabBarLabelStyle: {
@@ -36,7 +34,7 @@ export default function TabLayout() {
       }}>
       
       <Tabs.Screen
-        name="home"
+        name="Dashboard"
         options={{
           title: 'Inicio',
           tabBarIcon: ({ color, size }) => (
@@ -48,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="Incidents"
         options={{
-          title: 'Incidentes',
+          title: 'Incidencias',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="alert-circle-outline" size={28} color={color} />
           ),
