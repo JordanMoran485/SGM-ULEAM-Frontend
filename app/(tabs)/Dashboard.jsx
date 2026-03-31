@@ -13,7 +13,7 @@ export default function DashboardScreen() {
   const { user } = useAppContext();
 
   return (
-    <ScrollView style={styles.containerç}>
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text variant="titleLarge" style={styles.userName}>Hola, {user ? user.name : 'Invitado'}</Text>

@@ -44,23 +44,18 @@ export default function LoginScreen() {
       body: JSON.stringify(formData)
     });
 
-    // Obtenemos el JSON independientemente de si es 200, 401 o 403
     const result = await response.json();
 
     if (response.ok) {
-      // ÉXITO: Usuario activo y datos correctos
       login(result.user, result.token);
       router.replace('/(tabs)/Dashboard');
     } else {
-      // ERROR CONTROLADO: Aquí es donde entra el 403 de "Desactivado"
       
-      // A) Errores de validación (campos vacíos, etc.)
       if (result.errors) {
         Object.keys(result.errors).forEach((key) => {
           setError(key, { type: "server", message: result.errors[key][0] });
         });
       } 
-      // B) Mensajes de lógica (No existe, clave mal o CUENTA DESACTIVADA)
       else if (result.message) {
         const errorMsg = result.message.toLowerCase();
 
@@ -75,7 +70,6 @@ export default function LoginScreen() {
       }
     }
   } catch (error) {
-    // ERROR DE RED REAL: Solo entra aquí si el servidor está apagado o no hay Wi-Fi
     console.error("Error de conexión técnica:", error.message);
     Alert.alert("Error de Red", "No hay conexión con el servidor de la Uleam. Revisa tu internet.");
   } finally {

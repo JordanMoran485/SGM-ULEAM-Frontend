@@ -1,10 +1,11 @@
 import React, { createContext, useState, useContext } from 'react';
 
-const AppContext = createContext({});
+export const AppContext = createContext({});
 
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null); 
   const [token, setToken] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const login = (userData, userToken) => {
     setUser(userData);
@@ -18,20 +19,18 @@ export const AppProvider = ({ children }) => {
 
   return (
     <AppContext.Provider 
-    
-    value={{ 
+      value={{ 
         user, 
         token, 
         login, 
         logout, 
-        isAuthenticated: 
-        !!token 
-        
-        }}
+        isLoading,
+        isAuthenticated: !!token 
+      }}
     >
       {children}
     </AppContext.Provider>
   );
 };
 
-export const useAppContext = () => useContext(AppContext);
+export const useAppContext  = () => useContext(AppContext);

@@ -104,12 +104,10 @@ export default function RegisterScreen() {
             });
           });
         } else {
-          // Error de credenciales o mensaje general
           Alert.alert("Atención", result.message || "Ocurrió un error inesperado");
         }
       }
     } catch (error) {
-      // Error real de red o de código JS
       console.error("Error en submit:", error);
       Alert.alert("Error de Conexión", "No se pudo establecer contacto con el servidor de la Uleam.");
     } finally {
