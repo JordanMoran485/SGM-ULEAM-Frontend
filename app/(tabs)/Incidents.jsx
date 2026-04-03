@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { View, FlatList, Text, StyleSheet } from "react-native";
-import { TouchableOpacity } from "react-native"; 
-import { CustomSearchBar } from "../../components/CustomSearchBar";
+import { TouchableOpacity } from "react-native";
+import { CustomSearchBar } from "../../src/components/CustomSearchBar";
+import { useRouter } from "expo-router";
 
 export default function IncidentsScreen() {
     const [search, setSearch] = useState("");
     const [listaOriginal, setListaOriginal] = useState([]);
     const [listaFiltrada, setListaFiltrada] = useState([]);
     const [refrescando, setRefrescando] = useState(false);
+    const router = useRouter();
 
     useEffect(() => {
 
@@ -21,9 +23,11 @@ export default function IncidentsScreen() {
             const datos = await response.json();
             setListaOriginal(datos);
             setListaFiltrada(datos);
+            console.log("Datos recibidos");
 
         } catch (error) {
             alert("Error al cargar datos: " + error.message);
+            console.error("Error al cargar datos:", error);
         }
 
     }
@@ -49,6 +53,7 @@ export default function IncidentsScreen() {
 
         } catch (error) {
             alert("Error al actualizar datos: " + error.message);
+            console.error("Error al actualizar datos:", error);
         } finally {
             setRefrescando(false);
         }
@@ -65,42 +70,51 @@ export default function IncidentsScreen() {
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 renderItem={({ item }) => {
-    const badgeStyle = 
-        item.status === 'pending' ? styles.badgePending : 
-        item.status === 'in_progress' ? styles.badgeInProgress : styles.badgeCompleted;
+                    const badgeStyle =
+                        item.status === 'pending' ? styles.badgePending :
+                            item.status === 'in_progress' ? styles.badgeInProgress : styles.badgeCompleted;
 
-    const textBadgeStyle = 
-        item.status === 'pending' ? styles.textoPending : 
-        item.status === 'in_progress' ? styles.textoInProgress : styles.textoCompleted;
+                    const textBadgeStyle =
+                        item.status === 'pending' ? styles.textoPending :
+                            item.status === 'in_progress' ? styles.textoInProgress : styles.textoCompleted;
 
-    return (
-        <View style={styles.item}>
-            <View style={styles.filaSuperior}>
-                <Text style={styles.tituloItem} numberOfLines={1}>{item.title}</Text>
-                <View style={[styles.badge, badgeStyle]}>
-                    <Text style={[styles.textoBadge, textBadgeStyle]}>{item.status}</Text>
-                </View>
-            </View>
+                    return (
+                        <View style={styles.item}>
+                            <View style={styles.filaSuperior}>
+                                <Text style={styles.tituloItem} numberOfLines={1}>{item.title}</Text>
+                                <View style={[styles.badge, badgeStyle]}>
+                                    <Text style={[styles.textoBadge, textBadgeStyle]}>{item.status}</Text>
+                                </View>
+                            </View>
 
-            <Text style={styles.descripcionItem} numberOfLines={2}>{item.description}</Text>
-            
-            <View style={styles.filaInferior}>
-                <View style={styles.contenedorUbicacion}>
-                    <Text style={{ fontSize: 12 }}>📍</Text> 
-                    <Text style={styles.ubicacionTexto}>{item.location}</Text>
-                </View>
+                            <Text style={styles.descripcionItem} numberOfLines={2}>{item.description}</Text>
 
-                {/* BOTÓN VER */}
-                <TouchableOpacity 
-                    style={styles.botonVer} 
-                    onPress={() => console.log("Ver detalle de:", item.id)}
-                >
-                    <Text style={styles.textoBoton}>Ver</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-}}
+                            <View style={styles.filaInferior}>
+                                <View style={styles.contenedorUbicacion}>
+                                    <Text style={{ fontSize: 12 }}>📍</Text>
+                                    <Text style={styles.ubicacionTexto}>{item.location}</Text>
+                                </View>
+
+                                {/* BOTÓN VER */}
+                                <TouchableOpacity
+                                    style={styles.botonVer}
+                                    onPress={() => router.push({
+                                        pathname: "/IncidentDetail",
+                                        params: {
+                                            id: item.id,
+                                            title: item.title,
+                                            description: item.description,
+                                            status: item.status,
+                                            location: item.location
+                                        }
+                                    })}
+                                >
+                                    <Text style={styles.textoBoton}>Ver</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    );
+                }}
                 refreshing={refrescando}
                 onRefresh={RefreshScren}
                 ListEmptyComponent={<Text style={styles.vacio}>No hay coincidencias...</Text>}
@@ -167,9 +181,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginBottom: 8,
     },
-  filaInferior: {
+    filaInferior: {
         flexDirection: "row",
-        justifyContent: "space-between", // Separa la ubicación del botón
+        justifyContent: "space-between",
         alignItems: "center",
         marginTop: 12,
         paddingTop: 10,
@@ -198,7 +212,6 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         textTransform: "uppercase",
     },
-    // Colores para cada estado
     badgePending: { backgroundColor: "#FFEAA7" },
     textoPending: { color: "#D6A31E" },
     badgeInProgress: { backgroundColor: "#81ECEC" },
