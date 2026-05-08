@@ -1,73 +1,84 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useAppContext } from '../src/context/AppContext';
 
 export default function IncidentDetail() {
-    const item = useLocalSearchParams();
+    const params = useLocalSearchParams();
     const router = useRouter();
+    const { incidents } = useAppContext();
 
-    // 1. Cambia esta IP por la de tu computadora (La que sale en php artisan serve)
-    const baseUrl = "http://192.168.100.9:8000/storage/"; 
+    const incident = useMemo(() => {
+        return incidents.find((currentIncident) => String(currentIncident.id) === String(params.id));
+    }, [incidents, params.id]);
 
-    // 2. FUNCIÓN INTELIGENTE PARA LA IMAGEN
-    const getSafeImageUri = () => {
-        // Si no hay imagen o es el texto "null", no devolvemos nada
-        if (!item.image || item.image === 'null' || item.image === '') {
-            return null;
-        }
-
-        // Si la imagen ya es una URL completa (como la de Goku de Shutterstock)
-        if (item.image.startsWith('http')) {
-            return { uri: item.image };
-        }
-
-        // Si es solo el nombre de un archivo (Método 2), le pegamos la ruta de Laravel
-        return { uri: `${baseUrl}${item.image}` };
-    };
-
-    const imageSource = getSafeImageUri();
+    const imageSource = incident?.image ? { uri: incident.image } : null;
 
     return (
-        <ScrollView 
-            style={styles.container} 
+        <ScrollView
+            style={styles.container}
             contentContainerStyle={styles.contentContainer}
         >
             <Stack.Screen options={{ title: 'Detalle del Reporte' }} />
 
-            {/* 3. RENDERIZADO CONDICIONAL DE LA IMAGEN */}
             {imageSource ? (
-                <Image 
-                    source={imageSource} 
+                <Image
+                    source={imageSource}
                     style={styles.imagenHeader}
                     resizeMode="cover"
                 />
             ) : (
                 <View style={styles.sinImagen}>
-                    <Text style={{color: '#B2BEC3', fontWeight: 'bold'}}>📷 Sin imagen adjunta</Text>
+                    <Text style={styles.sinImagenTexto}>📷 Sin imagen adjunta</Text>
                 </View>
             )}
 
             <View style={styles.card}>
                 <View style={styles.headerInfo}>
                     <Text style={styles.label}>Asunto del Incidente</Text>
-                    <Text style={styles.title}>{item.title}</Text>
+                    <Text style={styles.title}>{incident?.title || 'Incidencia no encontrada'}</Text>
                     <View style={styles.badge}>
-                        <Text style={styles.statusText}>{item.status}</Text>
+                        <Text style={styles.statusText}>{incident?.statusLabel || 'Pendiente'}</Text>
                     </View>
                 </View>
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Descripción</Text>
-                    <Text style={styles.infoText}>{item.description}</Text>
+                    <Text style={styles.infoText}>{incident?.description || 'Sin descripción registrada.'}</Text>
                 </View>
 
                 <View style={styles.section}>
                     <Text style={styles.label}>Ubicación</Text>
-                    <Text style={styles.infoText}>📍 {item.location}</Text>
+                    <Text style={styles.infoText}>📍 {incident?.location || 'Sin ubicación'}</Text>
                 </View>
 
-                <TouchableOpacity 
-                    style={styles.botonRegresar} 
+                <View style={styles.section}>
+                    <Text style={styles.label}>Conserje responsable</Text>
+                    <Text style={styles.infoText}>{incident?.assignedCleanerName || 'Sin asignar'}</Text>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.label}>Tareas asociadas</Text>
+                    {incident?.tasks?.length ? (
+                        incident.tasks.map((task) => (
+                            <View key={String(task.id)} style={styles.taskCard}>
+                                <Text style={styles.taskTitle}>{task.title}</Text>
+                                <Text style={styles.taskMeta}>{task.statusLabel}</Text>
+                                {task.assignedCleanerName ? (
+                                    <Text style={styles.taskMeta}>Asignado a: {task.assignedCleanerName}</Text>
+                                ) : null}
+                                {task.description ? (
+                                    <Text style={styles.taskDescription}>{task.description}</Text>
+                                ) : null}
+                            </View>
+                        ))
+                    ) : (
+                        <Text style={styles.infoText}>Esta incidencia todavía no tiene tareas enlazadas.</Text>
+                    )}
+                </View>
+
+                <TouchableOpacity
+                    style={styles.botonRegresar}
                     onPress={() => router.back()}
                 >
                     <Text style={styles.textoBoton}>Volver a la lista</Text>
@@ -87,7 +98,7 @@ const styles = StyleSheet.create({
     },
     imagenHeader: {
         width: '100%',
-        height: 300, // Altura para que Goku se vea bien
+        height: 300,
         backgroundColor: '#000',
     },
     sinImagen: {
@@ -96,6 +107,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#E1E8EE',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    sinImagenTexto: {
+        color: '#B2BEC3',
+        fontWeight: 'bold',
     },
     card: {
         backgroundColor: '#FFF',
@@ -145,6 +160,28 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#636E72',
         lineHeight: 24,
+    },
+    taskCard: {
+        backgroundColor: '#F5F7FA',
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 12,
+    },
+    taskTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#2D3436',
+        marginBottom: 4,
+    },
+    taskMeta: {
+        fontSize: 13,
+        color: '#0984E3',
+        marginBottom: 4,
+    },
+    taskDescription: {
+        fontSize: 14,
+        color: '#636E72',
+        lineHeight: 20,
     },
     botonRegresar: {
         backgroundColor: '#2D3436',

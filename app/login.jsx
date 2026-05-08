@@ -1,92 +1,94 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TouchableWithoutFeedback, Keyboard, Alert } from "react-native";
-import { Card, Text, Button, TextInput } from "react-native-paper";
-import { useForm, Controller } from 'react-hook-form';
-import { useAppContext } from '../src/context/AppContext';
+import { Alert, Keyboard, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-
+import { Controller, useForm } from 'react-hook-form';
+import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { useAppContext } from '../src/context/AppContext';
+import { buildApiUrl } from '../src/services/api';
+import { extractAuthPayload } from '../src/services/auth';
 
 const customTheme = {
   colors: {
-    primary: '#161616',
-    outline: '#c5c5a3',
-    onSurfaceVariant: '#666',
+    primary: '#0f2f29',
+    outline: '#cad7d2',
+    onSurfaceVariant: '#64746f',
     surface: 'white',
   }
 };
 
 export default function LoginScreen() {
-
   const router = useRouter();
   const { login } = useAppContext();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { control, handleSubmit, setError, formState: { errors } } = useForm({
-
     defaultValues: {
-      'email': '',
-      'password': '',
-
+      email: '',
+      password: '',
     }
   });
-  //     ejemplo@gmail.com
 
   const onSubmit = async (formData) => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const response = await fetch('http://192.168.100.9:8000/api/login', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData)
-    });
+    try {
+      const response = await fetch(buildApiUrl('/api/login'), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (response.ok) {
-      login(result.user, result.token);
-      router.replace('/(tabs)/Dashboard');
-    } else {
-      
-      if (result.errors) {
+      if (response.ok) {
+        const { user, token } = extractAuthPayload(result);
+
+        if (!token) {
+          Alert.alert("Error de autenticación", "El backend respondió sin token de acceso.");
+          return;
+        }
+
+        login(user, token);
+        router.replace('/');
+      } else if (result.errors) {
         Object.keys(result.errors).forEach((key) => {
           setError(key, { type: "server", message: result.errors[key][0] });
         });
-      } 
-      else if (result.message) {
+      } else if (result.message) {
         const errorMsg = result.message.toLowerCase();
 
         if (errorMsg.includes('contraseña')) {
           setError("password", { type: "server", message: result.message });
-        } 
-        else if (errorMsg.includes('correo') || errorMsg.includes('desactivada')) {
-          setError("email", { type: "server", message: result.message });
         } else {
           setError("email", { type: "server", message: result.message });
         }
       }
+    } catch (error) {
+      console.error("Error de conexión técnica:", error.message);
+      Alert.alert("Error de Red", "No hay conexión con el servidor de la Uleam. Revisa tu internet.");
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error de conexión técnica:", error.message);
-    Alert.alert("Error de Red", "No hay conexión con el servidor de la Uleam. Revisa tu internet.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-
-      <View style={styles.container}>
-        <Card style={styles.card}>
-
-          <Card.Title title="Login ULEAM" titleStyle={styles.title} />
-
-          <Card.Content>
+      <LinearGradient
+        colors={['#f3f7f5', '#eef3f0', '#f8faf9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.screen}
+      >
+        <View style={styles.shell}>
+          <View style={styles.card}>
+            <Text style={styles.title}>Iniciar sesión</Text>
+            <Text style={styles.subtitle}>
+              Accede al sistema para consultar tareas, incidencias y seguimiento operativo.
+            </Text>
 
             <Controller
               control={control}
@@ -95,29 +97,28 @@ export default function LoginScreen() {
                 required: "El correo es obligatorio",
                 pattern: {
                   value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                  message: "correo inválido"
+                  message: "Correo inválido"
                 }
               }}
-
               render={({ field: { onChange, value } }) => (
-                <View style={styles.inputGap}>
+                <View style={styles.field}>
                   <TextInput
                     label="Correo institucional"
                     onChangeText={onChange}
                     value={value}
-                    maxLength={30}
+                    maxLength={60}
                     theme={customTheme}
                     style={styles.input}
-                    textColor="black"
+                    textColor="#18201d"
                     mode="outlined"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
                     error={!!errors.email}
-                    outlineStyle={[
-                      styles.inputOutline,
-                      !!errors.email && styles.bordererror
-                    ]}
-
+                    outlineStyle={styles.inputOutline}
                   />
-                  {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                  <HelperText type="error" visible={!!errors.email}>
+                    {errors.email?.message}
+                  </HelperText>
                 </View>
               )}
             />
@@ -126,149 +127,139 @@ export default function LoginScreen() {
               control={control}
               name="password"
               rules={{
-                required: "El nombre es obligatorio",
+                required: "La contraseña es obligatoria",
                 maxLength: {
-                  value: 15,
-                  message: "La contraseña no puede exceder los 15 caracteres"
+                  value: 40,
+                  message: "La contraseña no puede exceder los 40 caracteres"
                 },
                 minLength: {
                   value: 5,
                   message: "La contraseña debe tener al menos 5 caracteres"
                 }
-
               }}
               render={({ field: { onChange, value } }) => (
-                <View style={styles.inputGap}>
+                <View style={styles.field}>
                   <TextInput
                     label="Contraseña"
                     onChangeText={onChange}
                     value={value}
                     secureTextEntry={!isPasswordVisible}
-                    maxLength={15}
+                    maxLength={40}
                     mode="outlined"
                     theme={customTheme}
                     style={styles.input}
-                    textColor="black"
-                    outlineStyle={[
-                      styles.inputOutline,
-                      !!errors.password && styles.bordererror
-                    ]}
+                    textColor="#18201d"
+                    outlineStyle={styles.inputOutline}
                     error={!!errors.password}
                     right={
                       <TextInput.Icon
                         onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                         icon={isPasswordVisible ? "eye-off" : "eye"}
-                        color="rgba(14, 13, 13, 0.7)"
+                        color="#4e625d"
                       />
                     }
                   />
-                  {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                  <HelperText type="error" visible={!!errors.password}>
+                    {errors.password?.message}
+                  </HelperText>
                 </View>
               )}
             />
-            <Card.Actions style={{ justifyContent: 'center' }}>
 
-              <Button
-                mode="contained"
-                onPress={handleSubmit(onSubmit)}
-                style={styles.button}
-                loading={loading}
-              >
-                Iniciar sesión
-              </Button>
-            </Card.Actions>
-            <View style={styles.row}>
-              <Text style={styles.link2}>No tienes una cuenta?</Text>
-              <Text style={styles.link} onPress={() => router.replace("Register")}> Registrarse</Text>
+            <Button
+              mode="contained"
+              onPress={handleSubmit(onSubmit)}
+              style={styles.primaryButton}
+              buttonColor="#0f2f29"
+              textColor="#f4f7f5"
+              loading={loading}
+              contentStyle={styles.primaryButtonContent}
+            >
+              Entrar
+            </Button>
+
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
+              <TouchableOpacity onPress={() => router.replace("Register")}>
+                <Text style={styles.footerLink}>Registrarse</Text>
+              </TouchableOpacity>
             </View>
-
-
-
-          </Card.Content>
-        </Card>
-      </View>
+          </View>
+        </View>
+      </LinearGradient>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
+    flex: 1,
+    paddingHorizontal: 22,
+  },
+  shell: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
-  },
-
-  title: {
-    fontSize: 27,
-    textAlign: 'center',
-    marginBottom: 40,
-    marginTop: 30,
-    color: '#000000',
-    fontWeight: 'bold'
-
   },
   card: {
-    width: '90%',
-    maxWidth: 400,
-    padding: 10,
-    elevation: 4,
-    backgroundColor: '#f9f9f9',
-  },
-  inputGap: {
-    marginBottom: 15,
-
-  },
-
-  inputOutline: {
-    borderRadius: 30,
-    borderColor: '#c5c5a3',
-    borderWidth: 1,
-    backgroundColor: 'white',
-  },
-
-  input: {
-    backgroundColor: 'white',
-
-  },
-
-  button: {
-    marginTop: 30,
-    paddingVertical: 10,
-    borderRadius: 20,
     width: '100%',
-
+    maxWidth: 420,
+    backgroundColor: '#ffffff',
+    borderRadius: 30,
+    paddingHorizontal: 24,
+    paddingTop: 26,
+    paddingBottom: 22,
+    borderWidth: 1,
+    borderColor: '#dce7e2',
+    shadowColor: '#0f2f29',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 10,
   },
-
-  bordererror: {
-    borderColor: 'red'
-
+  title: {
+    color: '#16221e',
+    fontSize: 30,
+    fontWeight: '800',
   },
-
-  row: {
+  subtitle: {
+    color: '#687974',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 8,
+    marginBottom: 22,
+  },
+  field: {
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#fbfcfb',
+  },
+  inputOutline: {
+    borderRadius: 18,
+    borderColor: '#c8d5d0',
+  },
+  primaryButton: {
+    borderRadius: 18,
+    marginTop: 8,
+  },
+  primaryButtonContent: {
+    height: 54,
+  },
+  footerRow: {
     flexDirection: 'row',
-    marginTop: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    fontSize: 14,
+    marginTop: 18,
+    gap: 6,
   },
-
-
-  errorText: {
-    color: 'red',
-    fontSize: 13,
-    marginLeft: 15,
-    marginTop: 5
+  footerText: {
+    color: '#62736f',
+    fontSize: 15,
   },
-
-  link: {
-    color: '#b0b300',
-    fontWeight: 'bold',
-    fontSize: 17,
+  footerLink: {
+    color: '#0f2f29',
+    fontSize: 15,
+    fontWeight: '800',
   },
-  link2: {
-    fontSize: 17,
-    color: '#000000',
-  },
-
 });

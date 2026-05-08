@@ -1,111 +1,117 @@
-import React, { useState } from "react";
-import { StyleSheet, View, TouchableWithoutFeedback, Keyboard, ScrollView, Alert } from "react-native";
-import { Card, Text, Button, TextInput } from "react-native-paper";
-import { useForm, Controller } from 'react-hook-form';
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Keyboard, ScrollView, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { Controller, useForm } from 'react-hook-form';
+import { Button, HelperText, Text, TextInput } from "react-native-paper";
 import { Dropdown } from 'react-native-element-dropdown';
 import { useAppContext } from '../src/context/AppContext';
-import { useRouter } from 'expo-router';
-
+import { buildApiUrl } from '../src/services/api';
+import { extractAuthPayload } from '../src/services/auth';
+import { getRegistrationCatalogs } from '../src/services/catalogs';
 
 const customTheme = {
   colors: {
-    primary: '#161616',
-    outline: '#c5c5a3',
-    onSurfaceVariant: '#666',
+    primary: '#0f2f29',
+    outline: '#cad7d2',
+    onSurfaceVariant: '#64746f',
     surface: 'white',
   }
 };
-const facultades = [
-  { label: 'Facultad de Informática', value: 'facci' },
-  { label: 'Facultad de Ingeniería', value: 'faci' },
-  { label: 'Empresa Pública', value: 'ep' },
-];
-
-
-const carrerasPorFacultad = {
-  facci: [
-    { label: 'Tecnologías de la Información', value: 'ti' },
-    { label: 'Software', value: 'sw' },
-    { label: 'Ciencias de Datos', value: 'cd' },
-  ],
-  faci: [
-    { label: 'Ingeniería Civil', value: 'civil' },
-    { label: 'Ingeniería Eléctrica', value: 'electrica' },
-  ],
-  ep: [
-    { label: 'Servicios Generales', value: 'servicios' },
-    { label: 'Mantenimiento', value: 'mantenimiento' },
-  ],
-}
-
-
 
 export default function RegisterScreen() {
-
-
-
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState('');
+  const [facultades, setFacultades] = useState([]);
+  const [carreras, setCarreras] = useState([]);
   const { login } = useAppContext();
   const router = useRouter();
 
-
-  const { control, handleSubmit, watch, setError, formState: { errors } } = useForm({
-
+  const { control, handleSubmit, watch, setValue, setError, formState: { errors } } = useForm({
     defaultValues: {
-      'name': '',
-      'lastname': '',
-      'email': '',
-      'facultad': '',
-      'carrera': '',
-      'password': '',
-      'confirmPassword': ''
-
+      name: '',
+      lastname: '',
+      email: '',
+      facultad_id: '',
+      carrera_id: '',
+      password: '',
+      confirmPassword: ''
     }
   });
 
-  const selectedFacultad = watch("facultad");
+  const selectedFacultadId = watch("facultad_id");
   const passwordValue = watch("password");
 
-  const carrerasDisponibles = selectedFacultad ? carrerasPorFacultad[selectedFacultad] : [];
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      setCatalogLoading(true);
+      setCatalogError('');
 
+      try {
+        const catalogs = await getRegistrationCatalogs();
+        setFacultades(catalogs.facultades);
+        setCarreras(catalogs.carreras);
+      } catch (error) {
+        console.error('Error cargando catálogos:', error);
+        setCatalogError('No se pudieron cargar facultades y carreras desde la base de datos.');
+      } finally {
+        setCatalogLoading(false);
+      }
+    };
 
+    loadCatalogs();
+  }, []);
+
+  const carrerasDisponibles = useMemo(
+    () => carreras.filter((item) => item.facultadId === selectedFacultadId),
+    [carreras, selectedFacultadId]
+  );
 
   const onSubmit = async (formData) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://192.168.100.9:8000/api/register', {
+      const payload = {
+        name: formData.name,
+        lastname: formData.lastname,
+        email: formData.email,
+        carrera_id: Number(formData.carrera_id),
+        password: formData.password,
+      };
+
+      const response = await fetch(buildApiUrl('/api/register'), {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        login(result.user, result.token);
+        const { user, token } = extractAuthPayload(result);
 
-        Alert.alert("¡Éxito!", "Usuario registrado exitosamente.");
-
-        console.log("Registro OK:", result.user?.name);
-
-        router.replace('/Login');
-
-      } else {
-        if (result.errors) {
-          Object.keys(result.errors).forEach((key) => {
-            setError(key, {
-              type: "server",
-              message: result.errors[key][0],
-            });
-          });
-        } else {
-          Alert.alert("Atención", result.message || "Ocurrió un error inesperado");
+        if (!token) {
+          Alert.alert("Error de autenticación", "El backend respondió sin token de acceso.");
+          return;
         }
+
+        login(user, token);
+        Alert.alert("Éxito", "Usuario registrado exitosamente.");
+        router.replace('/');
+      } else if (result.errors) {
+        Object.keys(result.errors).forEach((key) => {
+          setError(key, {
+            type: "server",
+            message: result.errors[key][0],
+          });
+        });
+      } else {
+        Alert.alert("Atención", result.message || "Ocurrió un error inesperado");
       }
     } catch (error) {
       console.error("Error en submit:", error);
@@ -115,385 +121,383 @@ export default function RegisterScreen() {
     }
   };
 
-
-
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <Card style={styles.card}>
+      <LinearGradient
+        colors={['#f4f7f5', '#eef3f0', '#f8faf9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.screen}
+      >
+        <View style={styles.hero}>
+          <Text style={styles.kicker}>REGISTRO</Text>
+          <Text style={styles.title}>Crear cuenta institucional</Text>
+        </View>
 
-            <Card.Title title="Registro ULEAM" titleStyle={styles.title} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Registro institucional</Text>
 
-            <Card.Content>
-
-
-              <Controller
-                control={control}
-                name="name"
-                rules={{
-                  required: "El nombre es obligatorio",
-
-                }}
-
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <TextInput
-                      label="Nombre"
-                      onChangeText={onChange}
-                      value={value}
-                      theme={customTheme}
-                      maxLength={15}
-                      mode="outlined"
-                      selectionColor="#000000"
-                      textColor="black"
-                      error={!!errors.name}
-                      style={styles.input}
-                      outlineStyle={[
-                        styles.inputOutline,
-                        !!errors.name && styles.bordererror
-                      ]}
-                    />
-                    {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-
-
-              <Controller
-                control={control}
-                name="lastname"
-                rules={{
-                  required: "El apellido es obligatorio",
-
-                }}
-
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <TextInput
-                      label="Apellido"
-                      onChangeText={onChange}
-                      value={value}
-                      maxLength={15}
-                      theme={customTheme}
-                      style={styles.input}
-                      textColor="black"
-                      mode="outlined"
-                      error={!!errors.lastname}
-                      outlineStyle={[
-                        styles.inputOutline,
-                        !!errors.lastname && styles.bordererror
-                      ]}
-
-                    />
-                    {errors.lastname && <Text style={styles.errorText}>{errors.lastname.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-              <Controller
-                control={control}
-                name="email"
-                rules={{
-                  required: "El correo es obligatorio",
-                  pattern: {
-                    value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                    message: "correo inválido"
-                  }
-                }}
-
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <TextInput
-                      label="Correo institucional"
-                      onChangeText={onChange}
-                      value={value}
-                      maxLength={30}
-                      theme={customTheme}
-                      style={styles.input}
-                      textColor="black"
-                      mode="outlined"
-                      error={!!errors.email}
-                      outlineStyle={[
-                        styles.inputOutline,
-                        !!errors.email && styles.bordererror
-                      ]}
-
-                    />
-                    {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-
-              <Controller
-                control={control}
-                name="facultad"
-                rules={{ required: "Selecciona una facultad" }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <Dropdown
-                      style={[styles.dropdown, !!errors.facultad && styles.bordererror]}
-                      data={facultades}
-                      labelField="label"
-                      theme={customTheme}
-                      valueField="value"
-                      placeholder="Selecciona Facultad"
-                      placeholderStyle={{
-                        fontSize: 16,
-                        color: !!errors.facultad ? '#f2b9b6' : '#666',
-                      }}
-                      value={value}
-                      onChange={item => onChange(item.value)}
-                    />
-                    {errors.facultad && <Text style={styles.errorText}>{errors.facultad.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-              <Controller
-                control={control}
-                name="carrera"
-                rules={{ required: "Selecciona tu carrera" }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-
-                    <Dropdown
-                      disable={!selectedFacultad}
-                      style={[
-                        styles.dropdown,
-                        !selectedFacultad && { opacity: 0.6 },
-                        !!errors.carrera && styles.bordererror
-                      ]}
-                      data={carrerasDisponibles}
-                      labelField="label"
-                      valueField="value"
-                      placeholder={selectedFacultad ? "Selecciona Carrera" : "Primero elige una facultad"}
-                      placeholderStyle={{
-                        fontSize: 16,
-                        color: !!errors.carrera ? 'rgba(211, 47, 47, 0.6)' : '#666',
-                      }}
-                      selectedTextStyle={{ color: 'black' }}
-                      containerStyle={{
-                        backgroundColor: 'white',
-
-                      }}
-                      itemTextStyle={{ color: 'black' }}
-                      value={value}
-                      onChange={item => onChange(item.value)}
-                    />
-
-                    {errors.carrera && <Text style={styles.errorText}>{errors.carrera.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-              <Controller
-                control={control}
-                name="password"
-                rules={{
-                  required: "El nombre es obligatorio",
-                  maxLength: {
-                    value: 15,
-                    message: "La contraseña no puede exceder los 15 caracteres"
-                  },
-                  minLength: {
-                    value: 6,
-                    message: "La contraseña debe tener al menos 6 caracteres"
-                  }
-
-                }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <TextInput
-                      label="Contraseña"
-                      onChangeText={onChange}
-                      value={value}
-                      secureTextEntry={!isPasswordVisible}
-                      maxLength={15}
-                      mode="outlined"
-                      theme={customTheme}
-                      style={styles.input}
-                      textColor="black"
-                      outlineStyle={[
-                        styles.inputOutline,
-                        !!errors.password && styles.bordererror
-                      ]}
-                      error={!!errors.password}
-                      right={
-                        <TextInput.Icon
-                          onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                          icon={isPasswordVisible ? "eye-off" : "eye"}
-                          color="rgba(14, 13, 13, 0.7)"
-                        />
-                      }
-                    />
-                    {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
-                  </View>
-                )}
-              />
-
-              <Controller
-                control={control}
-                name="confirmPassword"
-                rules={{
-                  required: "Debes confirmar tu contraseña",
-                  validate: (value) => value === passwordValue || "Las contraseñas no coinciden"
-                }}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGap}>
-                    <TextInput
-                      label="Confirmar contraseña"
-                      onChangeText={onChange}
-                      value={value}
-                      secureTextEntry={!isPasswordVisible}
-                      maxLength={15}
-                      mode="outlined"
-                      theme={customTheme}
-                      textColor="black"
-                      style={styles.input}
-                      outlineStyle={[
-                        styles.inputOutline,
-                        !!errors.confirmPassword && styles.bordererror
-                      ]}
-                      error={!!errors.confirmPassword}
-                      right={
-                        <TextInput.Icon
-                          onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                          icon={isPasswordVisible ? "eye-off" : "eye"}
-                          color="rgba(14, 13, 13, 0.7)"
-                        />
-                      }
-                    />
-                    {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>}
-                  </View>
-                )}
-              />
-
-
-              <Card.Actions style={{ justifyContent: 'center' }}>
-
-                <Button
-                  mode="contained"
-                  onPress={handleSubmit(onSubmit)}
-                  style={styles.button}
-                  loading={loading}
-                >
-                  Registrar
-                </Button>
-              </Card.Actions>
-              <View style={styles.row}>
-                <Text style={styles.link2}>¿Ya tienes una cuenta?</Text>
-                <Text style={styles.link} onPress={() => router.replace("Login")}> Iniciar sesión</Text>
+            <View style={styles.row}>
+              <View style={[styles.field, styles.halfField]}>
+                <Controller
+                  control={control}
+                  name="name"
+                  rules={{ required: "El nombre es obligatorio" }}
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <TextInput
+                        label="Nombre"
+                        onChangeText={onChange}
+                        value={value}
+                        theme={customTheme}
+                        maxLength={30}
+                        mode="outlined"
+                        textColor="#18201d"
+                        error={!!errors.name}
+                        style={styles.input}
+                        outlineStyle={styles.inputOutline}
+                      />
+                      <HelperText type="error" visible={!!errors.name}>{errors.name?.message}</HelperText>
+                    </>
+                  )}
+                />
               </View>
 
+              <View style={[styles.field, styles.halfField]}>
+                <Controller
+                  control={control}
+                  name="lastname"
+                  rules={{ required: "El apellido es obligatorio" }}
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <TextInput
+                        label="Apellido"
+                        onChangeText={onChange}
+                        value={value}
+                        theme={customTheme}
+                        maxLength={30}
+                        mode="outlined"
+                        textColor="#18201d"
+                        error={!!errors.lastname}
+                        style={styles.input}
+                        outlineStyle={styles.inputOutline}
+                      />
+                      <HelperText type="error" visible={!!errors.lastname}>{errors.lastname?.message}</HelperText>
+                    </>
+                  )}
+                />
+              </View>
+            </View>
 
-            </Card.Content>
-          </Card>
-        </View>
-      </ScrollView>
+            <Controller
+              control={control}
+              name="email"
+              rules={{
+                required: "El correo es obligatorio",
+                pattern: {
+                  value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                  message: "Correo inválido"
+                }
+              }}
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.field}>
+                  <TextInput
+                    label="Correo institucional"
+                    onChangeText={onChange}
+                    value={value}
+                    maxLength={80}
+                    theme={customTheme}
+                    style={styles.input}
+                    textColor="#18201d"
+                    mode="outlined"
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    error={!!errors.email}
+                    outlineStyle={styles.inputOutline}
+                  />
+                  <HelperText type="error" visible={!!errors.email}>{errors.email?.message}</HelperText>
+                </View>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="facultad_id"
+              rules={{ required: "Selecciona una facultad" }}
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.field}>
+                  <Dropdown
+                    disable={catalogLoading || facultades.length === 0}
+                    style={[styles.dropdown, !!errors.facultad_id && styles.dropdownError]}
+                    data={facultades}
+                    labelField="label"
+                    valueField="value"
+                    placeholder={catalogLoading ? "Cargando facultades..." : "Selecciona facultad"}
+                    placeholderStyle={styles.dropdownPlaceholder}
+                    selectedTextStyle={styles.dropdownSelected}
+                    itemTextStyle={styles.dropdownItem}
+                    value={value}
+                    onChange={(item) => {
+                      onChange(item.value);
+                      setValue('carrera_id', '');
+                    }}
+                  />
+                  <HelperText type="error" visible={!!errors.facultad_id}>{errors.facultad_id?.message}</HelperText>
+                </View>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="carrera_id"
+              rules={{ required: "Selecciona una carrera" }}
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.field}>
+                  <Dropdown
+                    disable={!selectedFacultadId || catalogLoading || carrerasDisponibles.length === 0}
+                    style={[styles.dropdown, !!errors.carrera_id && styles.dropdownError]}
+                    data={carrerasDisponibles}
+                    labelField="label"
+                    valueField="value"
+                    placeholder={
+                      !selectedFacultadId
+                        ? "Primero elige una facultad"
+                        : catalogLoading
+                          ? "Cargando carreras..."
+                          : "Selecciona carrera"
+                    }
+                    placeholderStyle={styles.dropdownPlaceholder}
+                    selectedTextStyle={styles.dropdownSelected}
+                    itemTextStyle={styles.dropdownItem}
+                    value={value}
+                    onChange={(item) => onChange(item.value)}
+                  />
+                  <HelperText type="error" visible={!!errors.carrera_id}>{errors.carrera_id?.message}</HelperText>
+                </View>
+              )}
+            />
+
+            {catalogError ? (
+              <Text style={styles.catalogError}>{catalogError}</Text>
+            ) : null}
+
+            <View style={styles.row}>
+              <View style={[styles.field, styles.halfField]}>
+                <Controller
+                  control={control}
+                  name="password"
+                  rules={{
+                    required: "La contraseña es obligatoria",
+                    maxLength: {
+                      value: 40,
+                      message: "La contraseña no puede exceder los 40 caracteres"
+                    },
+                    minLength: {
+                      value: 6,
+                      message: "La contraseña debe tener al menos 6 caracteres"
+                    }
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <TextInput
+                        label="Contraseña"
+                        onChangeText={onChange}
+                        value={value}
+                        secureTextEntry={!isPasswordVisible}
+                        maxLength={40}
+                        mode="outlined"
+                        theme={customTheme}
+                        style={styles.input}
+                        textColor="#18201d"
+                        outlineStyle={styles.inputOutline}
+                        error={!!errors.password}
+                        right={
+                          <TextInput.Icon
+                            onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                            icon={isPasswordVisible ? "eye-off" : "eye"}
+                            color="#4e625d"
+                          />
+                        }
+                      />
+                      <HelperText type="error" visible={!!errors.password}>{errors.password?.message}</HelperText>
+                    </>
+                  )}
+                />
+              </View>
+
+              <View style={[styles.field, styles.halfField]}>
+                <Controller
+                  control={control}
+                  name="confirmPassword"
+                  rules={{
+                    required: "Confirma tu contraseña",
+                    validate: (value) => value === passwordValue || "Las contraseñas no coinciden"
+                  }}
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <TextInput
+                        label="Confirmar"
+                        onChangeText={onChange}
+                        value={value}
+                        secureTextEntry={!isPasswordVisible}
+                        maxLength={40}
+                        mode="outlined"
+                        theme={customTheme}
+                        textColor="#18201d"
+                        style={styles.input}
+                        outlineStyle={styles.inputOutline}
+                        error={!!errors.confirmPassword}
+                      />
+                      <HelperText type="error" visible={!!errors.confirmPassword}>{errors.confirmPassword?.message}</HelperText>
+                    </>
+                  )}
+                />
+              </View>
+            </View>
+
+            <Button
+              mode="contained"
+              onPress={handleSubmit(onSubmit)}
+              style={styles.primaryButton}
+              buttonColor="#0f2f29"
+              textColor="#f4f7f5"
+              loading={loading}
+              disabled={catalogLoading || !!catalogError}
+              contentStyle={styles.primaryButtonContent}
+            >
+              Crear cuenta
+            </Button>
+
+            <View style={styles.footerRow}>
+              <Text style={styles.footerText}>¿Ya tienes una cuenta?</Text>
+              <TouchableOpacity onPress={() => router.replace("Login")}>
+                <Text style={styles.footerLink}>Iniciar sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </LinearGradient>
     </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
+    paddingHorizontal: 22,
+    paddingTop: 56,
   },
-
-  scrollContainer: {
-    paddingVertical: 40
+  hero: {
+    gap: 10,
+    marginBottom: 18,
+  },
+  kicker: {
+    color: '#5b6f69',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   title: {
-    fontSize: 27,
-    textAlign: 'center',
-    marginBottom: 40,
-    marginTop: 30,
-    color: '#000000',
-    fontWeight: 'bold'
-
+    color: '#13211c',
+    fontSize: 32,
+    fontWeight: '800',
+    lineHeight: 38,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 32,
   },
   card: {
-    width: '90%',
-    maxWidth: 400,
-    padding: 10,
-    elevation: 4,
-    backgroundColor: '#f9f9f9',
-  },
-  inputGap: {
-    marginBottom: 15,
-
-  },
-
-  inputOutline: {
-    borderRadius: 30,
-    borderColor: '#c5c5a3',
+    backgroundColor: '#ffffff',
+    borderRadius: 28,
+    padding: 22,
     borderWidth: 1,
-    backgroundColor: 'white',
+    borderColor: '#dce7e2',
+    shadowColor: '#0f2f29',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
   },
-
-  input: {
-    backgroundColor: 'white',
-
+  cardTitle: {
+    color: '#13211c',
+    fontSize: 24,
+    fontWeight: '800',
   },
-
-  button: {
-    marginTop: 30,
-    paddingVertical: 10,
-    borderRadius: 20,
-    width: '100%',
-
-  },
-  dropdown: {
-    height: 50,
-    borderColor: '#c5c5a3',
-    borderWidth: 1,
-    borderRadius: 30,
-    paddingHorizontal: 20,
-    backgroundColor: 'white',
-  },
-
-  bordererror: {
-    borderColor: 'red'
-
-  },
-
   row: {
     flexDirection: 'row',
-    marginTop: 20,
+    gap: 12,
+  },
+  field: {
+    marginBottom: 4,
+  },
+  halfField: {
+    flex: 1,
+  },
+  input: {
+    backgroundColor: '#fcfdfb',
+  },
+  inputOutline: {
+    borderRadius: 18,
+    borderColor: '#c8d5d0',
+  },
+  dropdown: {
+    height: 56,
+    borderColor: '#c8d5d0',
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    backgroundColor: '#fcfdfb',
+  },
+  dropdownError: {
+    borderColor: '#b3261e',
+  },
+  dropdownPlaceholder: {
+    color: '#70817b',
+    fontSize: 15,
+  },
+  dropdownSelected: {
+    color: '#18201d',
+    fontSize: 15,
+  },
+  dropdownItem: {
+    color: '#18201d',
+  },
+  catalogError: {
+    color: '#b3261e',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+  primaryButton: {
+    borderRadius: 18,
+    marginTop: 10,
+  },
+  primaryButtonContent: {
+    height: 54,
+  },
+  footerRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    fontSize: 14,
+    marginTop: 18,
+    gap: 6,
   },
-
-
-  errorText: {
-    color: 'red',
-    fontSize: 13,
-    marginLeft: 15,
-    marginTop: 5
+  footerText: {
+    color: '#5b6b66',
+    fontSize: 15,
   },
-
-  link: {
-    color: '#b0b300',
-    fontWeight: 'bold',
-    fontSize: 17,
+  footerLink: {
+    color: '#0f2f29',
+    fontSize: 15,
+    fontWeight: '800',
   },
-  link2: {
-    fontSize: 17,
-    color: '#000000',
-  },
-
-
 });
-

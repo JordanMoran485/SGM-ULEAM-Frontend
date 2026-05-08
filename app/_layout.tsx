@@ -3,8 +3,7 @@
 import { Stack } from 'expo-router';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useAppContext, AppProvider } from '../src/context/AppContext';
-import { View, ActivityIndicator } from 'react-native';
+import { AppProvider } from '../src/context/AppContext';
 
 export default function RootLayout() {
 
