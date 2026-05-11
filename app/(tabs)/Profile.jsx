@@ -51,7 +51,7 @@ export default function Profile() {
                     <Text style={styles.eyebrow}>Cuenta y seguimiento</Text>
                     <Text style={styles.title}>{displayName}</Text>
                     <Text style={styles.subtitle}>
-                        Revisa tu identidad dentro del sistema, tu carga actual y los accesos principales.
+                        Revisa tu identidad dentro del sistema, tu carga actual y el estado de tu cuenta.
                     </Text>
                 </View>
 
@@ -139,50 +139,7 @@ export default function Profile() {
                 </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Accesos rápidos</Text>
-            </View>
-
-            <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push('/(tabs)/Dashboard')}
-            >
-                <View>
-                    <Text style={styles.actionTitle}>Volver al panel operativo</Text>
-                    <Text style={styles.actionText}>
-                        Consulta prioridades, actividad reciente y zonas con mayor carga.
-                    </Text>
-                </View>
-                <Text style={styles.actionLink}>Abrir</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push('/(tabs)/Incidents')}
-            >
-                <View>
-                    <Text style={styles.actionTitle}>Gestionar incidencias</Text>
-                    <Text style={styles.actionText}>
-                        Filtra tareas, revisa responsables y entra al detalle de cada caso.
-                    </Text>
-                </View>
-                <Text style={styles.actionLink}>Abrir</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push('/ReportIncident')}
-            >
-                <View>
-                    <Text style={styles.actionTitle}>Reportar nueva incidencia</Text>
-                    <Text style={styles.actionText}>
-                        Registra una novedad con ubicación, descripción y foto tomada desde el dispositivo.
-                    </Text>
-                </View>
-                <Text style={styles.actionLink}>Crear</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.actionCard, styles.logoutCard]} onPress={handleLogout}>
+            <TouchableOpacity style={styles.logoutCard} onPress={handleLogout}>
                 <View>
                     <Text style={styles.logoutTitle}>Cerrar sesión</Text>
                     <Text style={styles.logoutText}>
@@ -407,38 +364,16 @@ const styles = StyleSheet.create({
         lineHeight: 19,
         textAlign: 'right',
     },
-    actionCard: {
-        backgroundColor: '#ffffff',
+    logoutCard: {
+        backgroundColor: '#fff6f5',
         borderRadius: 24,
         padding: 18,
         borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 12,
+        borderColor: '#f2d8d5',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         gap: 16,
-    },
-    actionTitle: {
-        color: '#16211e',
-        fontSize: 16,
-        fontWeight: '800',
-        marginBottom: 6,
-    },
-    actionText: {
-        color: '#687974',
-        fontSize: 14,
-        lineHeight: 20,
-        maxWidth: '92%',
-    },
-    actionLink: {
-        color: '#10342d',
-        fontSize: 13,
-        fontWeight: '800',
-    },
-    logoutCard: {
-        backgroundColor: '#fff6f5',
-        borderColor: '#f2d8d5',
         marginTop: 6,
     },
     logoutTitle: {
