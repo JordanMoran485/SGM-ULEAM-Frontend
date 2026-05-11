@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useMemo } from 'react';
+import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
 
 export const AppContext = createContext({});
@@ -22,6 +23,20 @@ export const AppProvider = ({ children }) => {
     setIncidentsLoaded(false);
   };
 
+  const updateProfileImage = async (image) => {
+    if (!user || !token) {
+      return;
+    }
+
+    const result = await uploadProfileImage(token, image);
+
+    if (result?.user) {
+      setUser(result.user);
+    }
+
+    return result;
+  };
+
   const refreshIncidents = async () => {
     setIsLoading(true);
 
@@ -43,6 +58,7 @@ export const AppProvider = ({ children }) => {
       value={{ 
         user, 
         token, 
+        updateProfileImage,
         incidents,
         incidentsLoaded,
         refreshIncidents,

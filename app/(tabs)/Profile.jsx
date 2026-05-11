@@ -1,34 +1,97 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useMemo, useState } from 'react';
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAppContext } from '../../src/context/AppContext';
-
-function getInitials(name) {
-    if (!name) {
-        return 'U';
-    }
-
-    return name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('');
-}
 
 export default function Profile() {
     const router = useRouter();
-    const { user, stats, logout } = useAppContext();
+    const { user, logout, updateProfileImage } = useAppContext();
+    const [localProfilePreview, setLocalProfilePreview] = useState(null);
+    const [avatarRefreshKey, setAvatarRefreshKey] = useState(0);
 
     const displayName = [user?.name, user?.lastname].filter(Boolean).join(' ') || user?.name || 'Usuario ULEAM';
     const userEmail = user?.email || 'Sin correo registrado';
-    const userRole = user?.role || user?.cargo || 'Operador del sistema';
+    const primaryRole = Array.isArray(user?.roles) ? user.roles[0]?.name : null;
+    const userRole =
+        ({
+            super_admin: 'Superadministrador',
+            supervisor: 'Supervisor',
+            conserje: 'Conserje',
+        }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
     const accountStatus = user?.active_state === false ? 'Cuenta desactivada' : 'Cuenta activa';
     const accountStatusTone = user?.active_state === false ? styles.statusAlert : styles.statusGood;
-    const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-    const activeLoad = stats.pending + stats.inProgress;
+    const facultyLabel = user?.carrera?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
     const careerLabel = user?.carrera?.name || (user?.carrera_id ? `Carrera #${user.carrera_id}` : 'No asignada');
+    const remoteProfileImage = useMemo(() => {
+        if (!user?.profile_photo_url) {
+            return null;
+        }
+
+        const separator = user.profile_photo_url.includes('?') ? '&' : '?';
+        return `${user.profile_photo_url}${separator}v=${avatarRefreshKey}`;
+    }, [avatarRefreshKey, user?.profile_photo_url]);
+
+    const pickFromLibrary = async () => {
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (!permission.granted) {
+                Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos para cambiar el avatar.');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets?.[0]?.uri) {
+                setLocalProfilePreview(result.assets[0].uri);
+                await updateProfileImage(result.assets[0]);
+                setAvatarRefreshKey((current) => current + 1);
+            }
+        } catch (error) {
+            Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+        }
+    };
+
+    const takePhoto = async () => {
+        try {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+            if (!permission.granted) {
+                Alert.alert('Permiso requerido', 'Debes permitir el acceso a la camara para tomar la foto.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets?.[0]?.uri) {
+                setLocalProfilePreview(result.assets[0].uri);
+                await updateProfileImage(result.assets[0]);
+                setAvatarRefreshKey((current) => current + 1);
+            }
+        } catch (error) {
+            Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+        }
+    };
+
+    const handlePickProfileImage = () => {
+        Alert.alert('Foto de perfil', 'Elige una opcion', [
+            { text: 'Tomar foto', onPress: takePhoto },
+            { text: 'Galeria', onPress: pickFromLibrary },
+            { text: 'Cancelar', style: 'cancel' },
+        ]);
+    };
 
     const handleLogout = () => {
         logout();
@@ -54,48 +117,38 @@ export default function Profile() {
                         Revisa tu identidad dentro del sistema, tu carga actual y el estado de tu cuenta.
                     </Text>
                 </View>
-
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
-                </View>
             </View>
 
-            <LinearGradient
-                colors={['#0f2f29', '#1a4b41']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroCard}
-            >
-                <View style={styles.heroTopRow}>
-                    <View style={styles.heroIdentity}>
-                        <Text style={styles.heroLabel}>Perfil institucional</Text>
-                        <Text style={styles.heroValue}>{completionRate}%</Text>
-                        <Text style={styles.heroHelper}>de tareas registradas ya completadas</Text>
-                    </View>
+            <TouchableOpacity style={styles.avatarSection} onPress={handlePickProfileImage} activeOpacity={0.9}>
+                <View style={styles.avatarEditorFrame}>
+                    {localProfilePreview || remoteProfileImage ? (
+                        <Image
+                            key={localProfilePreview || remoteProfileImage}
+                            source={{ uri: localProfilePreview || remoteProfileImage }}
+                            style={styles.avatarEditorImage}
+                            onError={() => {
+                                if (localProfilePreview && remoteProfileImage) {
+                                    setLocalProfilePreview(null);
+                                    return;
+                                }
 
-                    <View style={styles.heroStatusCard}>
-                        <Text style={styles.heroStatusKicker}>Carga activa</Text>
-                        <Text style={styles.heroStatusValue}>{activeLoad}</Text>
-                        <Text style={styles.heroStatusText}>pendientes y en progreso</Text>
+                                Alert.alert('No se pudo mostrar la foto', 'La imagen se guardó, pero no se pudo cargar en la app.');
+                            }}
+                        />
+                    ) : (
+                        <View style={styles.avatarFallback}>
+                            <MaterialCommunityIcons name="account-circle" size={88} color="#c6d6d0" />
+                        </View>
+                    )}
+
+                    <View style={styles.avatarEditBadge}>
+                        <MaterialCommunityIcons name="pencil" size={16} color="#10342d" />
                     </View>
                 </View>
 
-                <View style={styles.heroBottomRow}>
-                    <TouchableOpacity
-                        style={styles.heroActionPrimary}
-                        onPress={() => router.push('/(tabs)/Dashboard')}
-                    >
-                        <Text style={styles.heroActionPrimaryText}>Ir al panel</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.heroActionSecondary}
-                        onPress={() => router.push('/(tabs)/Incidents')}
-                    >
-                        <Text style={styles.heroActionSecondaryText}>Ver incidencias</Text>
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
+                <Text style={styles.avatarCardTitle}>Foto de perfil</Text>
+                <Text style={styles.avatarCardText}>Toca para tomar una foto o elegir una imagen.</Text>
+            </TouchableOpacity>
 
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Resumen de cuenta</Text>
@@ -122,6 +175,15 @@ export default function Profile() {
 
                 <View style={styles.infoRow}>
                     <View style={styles.infoBadge}>
+                        <Text style={styles.infoBadgeText}>Facultad</Text>
+                    </View>
+                    <Text style={styles.infoValue}>{facultyLabel}</Text>
+                </View>
+
+                <View style={styles.infoDivider} />
+
+                <View style={styles.infoRow}>
+                    <View style={styles.infoBadge}>
                         <Text style={styles.infoBadgeText}>Carrera</Text>
                     </View>
                     <Text style={styles.infoValue}>{careerLabel}</Text>
@@ -139,17 +201,19 @@ export default function Profile() {
                 </View>
             </View>
 
-            <TouchableOpacity style={styles.logoutCard} onPress={handleLogout}>
-                <View>
-                    <Text style={styles.logoutTitle}>Cerrar sesión</Text>
-                    <Text style={styles.logoutText}>
-                        Finaliza la sesión actual en este dispositivo.
-                    </Text>
+            <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.9}>
+                <View style={styles.logoutContent}>
+                    <View style={styles.logoutIconWrap}>
+                        <MaterialCommunityIcons name="logout-variant" size={20} color="#b93832" />
+                    </View>
+                    <Text style={styles.logoutTitle}>Cerrar sesion</Text>
                 </View>
-                <Text style={styles.logoutLink}>Salir</Text>
+                <View style={styles.logoutCta}>
+                    <Text style={styles.logoutLink}>Salir</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={16} color="#ffffff" />
+                </View>
             </TouchableOpacity>
 
-            <Text style={styles.footerText}>Sistema de Mantenimiento ULEAM</Text>
         </ScrollView>
     );
 }
@@ -171,7 +235,6 @@ const styles = StyleSheet.create({
     },
     headerText: {
         flex: 1,
-        paddingRight: 16,
     },
     eyebrow: {
         color: '#6b7d78',
@@ -192,104 +255,61 @@ const styles = StyleSheet.create({
         fontSize: 15,
         lineHeight: 22,
     },
-    avatar: {
-        width: 58,
-        height: 58,
-        borderRadius: 29,
-        backgroundColor: '#dbe5e1',
+    avatarSection: {
+        paddingVertical: 8,
         alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarText: {
-        color: '#17342d',
-        fontSize: 18,
-        fontWeight: '800',
-    },
-    heroCard: {
-        borderRadius: 30,
-        padding: 22,
         marginBottom: 18,
     },
-    heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 14,
-        marginBottom: 20,
+    avatarEditorFrame: {
+        width: 124,
+        height: 124,
+        borderRadius: 62,
+        backgroundColor: '#edf4f1',
+        borderWidth: 1,
+        borderColor: '#d9e5e0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 14,
+        position: 'relative',
+        overflow: 'visible',
     },
-    heroIdentity: {
-        flex: 1,
+    avatarEditorImage: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 62,
     },
-    heroLabel: {
-        color: '#9fd0c2',
-        fontSize: 13,
-        fontWeight: '700',
-        marginBottom: 8,
+    avatarFallback: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 62,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#edf4f1',
     },
-    heroValue: {
-        color: '#ffffff',
-        fontSize: 48,
+    avatarEditBadge: {
+        position: 'absolute',
+        right: 2,
+        bottom: 2,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#f3f6f4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#d9e5e0',
+    },
+    avatarCardTitle: {
+        color: '#16211e',
+        fontSize: 18,
         fontWeight: '800',
-        lineHeight: 52,
-    },
-    heroHelper: {
-        color: '#d7ebe5',
-        fontSize: 14,
-        marginTop: 4,
-        lineHeight: 20,
-    },
-    heroStatusCard: {
-        minWidth: 112,
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 22,
-        paddingHorizontal: 14,
-        paddingVertical: 14,
-    },
-    heroStatusKicker: {
-        color: '#c3ddd6',
-        fontSize: 12,
-        fontWeight: '700',
         marginBottom: 6,
     },
-    heroStatusValue: {
-        color: '#ffffff',
-        fontSize: 26,
-        fontWeight: '800',
-    },
-    heroStatusText: {
-        color: '#d7ebe5',
-        fontSize: 12,
-        marginTop: 4,
-        lineHeight: 17,
-    },
-    heroBottomRow: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    heroActionPrimary: {
-        flex: 1,
-        backgroundColor: '#f3f6f4',
-        borderRadius: 18,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    heroActionPrimaryText: {
-        color: '#10342d',
+    avatarCardText: {
+        color: '#64746f',
         fontSize: 14,
-        fontWeight: '800',
-    },
-    heroActionSecondary: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.18)',
-        borderRadius: 18,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    heroActionSecondaryText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '700',
+        textAlign: 'center',
+        lineHeight: 20,
     },
     sectionHeader: {
         marginBottom: 12,
@@ -365,31 +385,53 @@ const styles = StyleSheet.create({
         textAlign: 'right',
     },
     logoutCard: {
-        backgroundColor: '#fff6f5',
+        backgroundColor: '#fff4f2',
         borderRadius: 24,
-        padding: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
         borderWidth: 1,
-        borderColor: '#f2d8d5',
+        borderColor: '#efcfca',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: 16,
-        marginTop: 6,
+        gap: 12,
+        marginTop: 8,
+        shadowColor: '#d06d65',
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 2,
+    },
+    logoutContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    logoutIconWrap: {
+        width: 42,
+        height: 42,
+        borderRadius: 14,
+        backgroundColor: '#ffe2de',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     logoutTitle: {
         color: '#7f2926',
         fontSize: 16,
         fontWeight: '800',
-        marginBottom: 6,
     },
-    logoutText: {
-        color: '#99605d',
-        fontSize: 14,
-        lineHeight: 20,
-        maxWidth: '92%',
+    logoutCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#c5453f',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     logoutLink: {
-        color: '#c5453f',
+        color: '#ffffff',
         fontSize: 13,
         fontWeight: '800',
     },
