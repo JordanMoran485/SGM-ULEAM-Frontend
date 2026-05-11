@@ -20,11 +20,12 @@ export default function TabLayout() {
         // Estilo de la barra de botones
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 20,
+          borderTopWidth: 1,
+          borderTopColor: '#d9e5e0',
           height: Platform.OS === 'ios' ? 70 + insets.bottom : 75 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
-          position: 'absolute', // Hace que la barra parezca flotar
+          position: 'relative',
         },
         tabBarLabelStyle: {
           fontSize: 12,

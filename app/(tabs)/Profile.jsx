@@ -97,21 +97,6 @@ export default function Profile() {
                 </View>
             </LinearGradient>
 
-            <View style={styles.metricsGrid}>
-                <View style={[styles.metricCard, styles.metricCardNeutral]}>
-                    <Text style={styles.metricLabel}>Reportes</Text>
-                    <Text style={styles.metricValue}>{stats.total}</Text>
-                </View>
-                <View style={[styles.metricCard, styles.metricCardWarning]}>
-                    <Text style={styles.metricLabel}>Pendientes</Text>
-                    <Text style={styles.metricValue}>{stats.pending}</Text>
-                </View>
-                <View style={[styles.metricCard, styles.metricCardCool]}>
-                    <Text style={styles.metricLabel}>Completadas</Text>
-                    <Text style={styles.metricValue}>{stats.completed}</Text>
-                </View>
-            </View>
-
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Resumen de cuenta</Text>
             </View>
@@ -348,41 +333,6 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 14,
         fontWeight: '700',
-    },
-    metricsGrid: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 24,
-    },
-    metricCard: {
-        flex: 1,
-        borderRadius: 22,
-        padding: 16,
-    },
-    metricCardNeutral: {
-        backgroundColor: '#ffffff',
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-    },
-    metricCardWarning: {
-        backgroundColor: '#f7efe3',
-        borderWidth: 1,
-        borderColor: '#ebdec5',
-    },
-    metricCardCool: {
-        backgroundColor: '#eaf3f8',
-        borderWidth: 1,
-        borderColor: '#d3e4ef',
-    },
-    metricLabel: {
-        color: '#687974',
-        fontSize: 12,
-        marginBottom: 8,
-    },
-    metricValue: {
-        color: '#16211e',
-        fontSize: 30,
-        fontWeight: '800',
     },
     sectionHeader: {
         marginBottom: 12,
