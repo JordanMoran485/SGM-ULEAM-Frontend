@@ -1,4 +1,4 @@
-import { buildStorageUrl, fetchJson } from './api';
+import { buildApiUrl, buildStorageUrl, fetchJson } from './api';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -64,8 +64,26 @@ function getTaskResponsibleName(rawTask) {
   );
 }
 
+function getTaskImage(rawTask) {
+  return buildStorageUrl(
+    firstDefined(
+      rawTask?.image_url,
+      rawTask?.photo_url,
+      rawTask?.image,
+      rawTask?.photo,
+      rawTask?.image_path,
+      rawTask?.photo_path,
+      rawTask?.attachment,
+      rawTask?.file,
+      rawTask?.evidence,
+      rawTask?.evidence_url
+    )
+  );
+}
+
 function normalizeTaskAsIncident(rawTask) {
   const status = getStatusKey(rawTask?.status);
+  const image = getTaskImage(rawTask);
 
   return {
     id: firstDefined(rawTask?.id, rawTask?.task_id),
@@ -74,7 +92,7 @@ function normalizeTaskAsIncident(rawTask) {
     location: firstDefined(rawTask?.location, 'Sin ubicación'),
     status,
     statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
-    image: buildStorageUrl(firstDefined(rawTask?.image, rawTask?.photo, rawTask?.image_url)),
+    image,
     createdAt: firstDefined(rawTask?.created_at, rawTask?.createdAt),
     updatedAt: firstDefined(rawTask?.updated_at, rawTask?.updatedAt),
     assignedCleanerName: getTaskResponsibleName(rawTask),
@@ -88,6 +106,7 @@ function normalizeTaskAsIncident(rawTask) {
         statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
         area: firstDefined(rawTask?.location, null),
         assignedCleanerName: getTaskResponsibleName(rawTask),
+        image,
       },
     ],
     tasksCount: 1,
@@ -99,6 +118,7 @@ function normalizeTaskAsIncident(rawTask) {
       statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
       area: firstDefined(rawTask?.location, null),
       assignedCleanerName: getTaskResponsibleName(rawTask),
+      image,
     },
     priority: firstDefined(rawTask?.priority, 'Media'),
     dueDate: firstDefined(rawTask?.due_date, rawTask?.dueDate),
@@ -148,4 +168,73 @@ async function fetchTasksCollection(token) {
 export async function getIncidents(token) {
   const data = await fetchTasksCollection(token);
   return asArray(data).map(normalizeTaskAsIncident);
+}
+
+function appendIfPresent(formData, key, value) {
+  if (value !== undefined && value !== null && value !== '') {
+    formData.append(key, value);
+  }
+}
+
+function buildUploadFile(image) {
+  if (!image?.uri) {
+    return null;
+  }
+
+  const uri = image.uri;
+  const extensionMatch = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+  const extension = extensionMatch?.[1]?.toLowerCase() || 'jpg';
+  const normalizedExtension = extension === 'jpeg' ? 'jpg' : extension;
+  const type = image.mimeType || image.type || `image/${normalizedExtension}`;
+
+  return {
+    uri,
+    name: image.fileName || `incident-${Date.now()}.${normalizedExtension}`,
+    type,
+  };
+}
+
+export async function createIncident(token, payload) {
+  const formData = new FormData();
+
+  appendIfPresent(formData, 'title', payload?.title);
+  appendIfPresent(formData, 'description', payload?.description);
+  appendIfPresent(formData, 'location', payload?.location);
+  appendIfPresent(formData, 'status', payload?.status || 'pending');
+
+  const uploadFile = buildUploadFile(payload?.image);
+
+  if (uploadFile) {
+    formData.append('image', uploadFile);
+  }
+
+  const response = await fetch(buildApiUrl('/api/incidents'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  const responseText = await response.text();
+  let data = null;
+
+  try {
+    data = responseText ? JSON.parse(responseText) : null;
+  } catch (_error) {
+    data = responseText;
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      (typeof data === 'object' ? data?.message : null) ||
+      `Request failed with status ${response.status} at ${buildApiUrl('/api/incidents')}`
+    );
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
 }

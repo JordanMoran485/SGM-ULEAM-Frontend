@@ -62,7 +62,9 @@ export function buildStorageUrl(path = '') {
     return path;
   }
 
-  const normalizedPath = String(path).replace(/^\/+/, '');
+  const normalizedPath = String(path)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/+/i, '');
   return `${STORAGE_BASE_URL}/${normalizedPath}`;
 }
 

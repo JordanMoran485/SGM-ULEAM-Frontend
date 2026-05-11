@@ -150,8 +150,15 @@ export default function IncidentsScreen() {
 
                     <View style={styles.listHeaderRow}>
                         <Text style={styles.sectionTitle}>Listado operativo</Text>
-                        <Text style={styles.sectionMeta}>{filteredItems.length} resultados</Text>
+                        <TouchableOpacity
+                            style={styles.reportButton}
+                            onPress={() => router.push('/ReportIncident')}
+                        >
+                            <Text style={styles.reportButtonText}>Reportar</Text>
+                        </TouchableOpacity>
                     </View>
+
+                    <Text style={styles.sectionMeta}>{filteredItems.length} resultados</Text>
                 </View>
             }
             renderItem={({ item }) => {
@@ -322,6 +329,18 @@ const styles = StyleSheet.create({
         color: "#64746f",
         fontSize: 13,
         fontWeight: "700",
+        marginBottom: 12,
+    },
+    reportButton: {
+        backgroundColor: "#10342d",
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+    },
+    reportButtonText: {
+        color: "#f4f7f5",
+        fontSize: 12,
+        fontWeight: "800",
     },
     card: {
         backgroundColor: "#ffffff",

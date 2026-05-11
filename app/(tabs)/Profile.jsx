@@ -184,6 +184,19 @@ export default function Profile() {
                 <Text style={styles.actionLink}>Abrir</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => router.push('/ReportIncident')}
+            >
+                <View>
+                    <Text style={styles.actionTitle}>Reportar nueva incidencia</Text>
+                    <Text style={styles.actionText}>
+                        Registra una novedad con ubicación, descripción y foto tomada desde el dispositivo.
+                    </Text>
+                </View>
+                <Text style={styles.actionLink}>Crear</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={[styles.actionCard, styles.logoutCard]} onPress={handleLogout}>
                 <View>
                     <Text style={styles.logoutTitle}>Cerrar sesión</Text>

@@ -25,6 +25,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite acceder a tus fotos para adjuntar evidencia a una incidencia.",
+          "cameraPermission": "Permite usar la cámara para fotografiar incidencias reportadas por los conserjes."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "imageWidth": 200,
