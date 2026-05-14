@@ -6,9 +6,9 @@ const STATUS_LABELS = {
   completed: 'Completada',
   resolved: 'Resuelta',
   cancelled: 'Cancelada',
-  'Pendiente': 'Pendiente',
+  Pendiente: 'Pendiente',
   'En Proceso': 'En progreso',
-  'Completada': 'Completada',
+  Completada: 'Completada',
 };
 
 function asArray(value) {
@@ -47,49 +47,40 @@ function getStatusKey(status) {
   return normalized;
 }
 
-function getTaskResponsibleName(rawTask) {
+function getPersonName(rawUser, fallback = 'Sin asignar') {
   return firstDefined(
-    rawTask?.user?.name && rawTask?.user?.lastname
-      ? `${rawTask.user.name} ${rawTask.user.lastname}`.trim()
-      : null,
-    rawTask?.user?.name,
-    rawTask?.assigned_to_name,
-    rawTask?.cleaner_name,
-    rawTask?.concierge_name,
-    rawTask?.janitor_name,
-    rawTask?.responsible_name,
-    rawTask?.responsable,
-    rawTask?.user_id ? `Usuario #${rawTask.user_id}` : null,
-    'Sin asignar'
+    rawUser?.name && rawUser?.lastname ? `${rawUser.name} ${rawUser.lastname}`.trim() : null,
+    rawUser?.name,
+    fallback
   );
 }
 
-function getTaskImage(rawTask) {
+function getImage(rawItem) {
   return buildStorageUrl(
     firstDefined(
-      rawTask?.image_url,
-      rawTask?.photo_url,
-      rawTask?.image,
-      rawTask?.photo,
-      rawTask?.image_path,
-      rawTask?.photo_path,
-      rawTask?.attachment,
-      rawTask?.file,
-      rawTask?.evidence,
-      rawTask?.evidence_url
+      rawItem?.image_url,
+      rawItem?.photo_url,
+      rawItem?.image,
+      rawItem?.photo,
+      rawItem?.image_path,
+      rawItem?.photo_path,
+      rawItem?.attachment,
+      rawItem?.file,
+      rawItem?.evidence,
+      rawItem?.evidence_url
     )
   );
 }
 
-function normalizeTaskAsIncident(rawTask) {
+function normalizeTask(rawTask) {
   const status = getStatusKey(rawTask?.status);
-  const image = getTaskImage(rawTask);
+  const image = getImage(rawTask);
 
   return {
     id: firstDefined(rawTask?.id, rawTask?.task_id),
-    title: firstDefined(rawTask?.title, 'Tarea sin título'),
+    title: firstDefined(rawTask?.title, 'Tarea sin titulo'),
     description: firstDefined(rawTask?.description, ''),
-    location: firstDefined(rawTask?.location, 'Sin ubicación'),
+    location: firstDefined(rawTask?.location, 'Sin ubicacion'),
     status,
     statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
     image,
@@ -98,40 +89,43 @@ function normalizeTaskAsIncident(rawTask) {
     startAt: firstDefined(rawTask?.start_at, rawTask?.startAt),
     endAt: firstDefined(rawTask?.end_at, rawTask?.endAt),
     allDay: Boolean(firstDefined(rawTask?.all_day, rawTask?.allDay, false)),
-    assignedCleanerName: getTaskResponsibleName(rawTask),
+    assignedCleanerName: getPersonName(rawTask?.user),
     assignedCleanerRole: 'Conserje asignado',
-    tasks: [
-      {
-        id: firstDefined(rawTask?.id, rawTask?.task_id),
-        title: firstDefined(rawTask?.title, 'Tarea asignada'),
-        description: firstDefined(rawTask?.description, ''),
-        status,
-          statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
-          area: firstDefined(rawTask?.location, null),
-          assignedCleanerName: getTaskResponsibleName(rawTask),
-          image,
-          startAt: firstDefined(rawTask?.start_at, rawTask?.startAt),
-          endAt: firstDefined(rawTask?.end_at, rawTask?.endAt),
-          allDay: Boolean(firstDefined(rawTask?.all_day, rawTask?.allDay, false)),
-        },
-      ],
-    tasksCount: 1,
-    latestTask: {
-      id: firstDefined(rawTask?.id, rawTask?.task_id),
-      title: firstDefined(rawTask?.title, 'Tarea asignada'),
-      description: firstDefined(rawTask?.description, ''),
-      status,
-        statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
-        area: firstDefined(rawTask?.location, null),
-        assignedCleanerName: getTaskResponsibleName(rawTask),
-        image,
-        startAt: firstDefined(rawTask?.start_at, rawTask?.startAt),
-        endAt: firstDefined(rawTask?.end_at, rawTask?.endAt),
-        allDay: Boolean(firstDefined(rawTask?.all_day, rawTask?.allDay, false)),
-      },
     priority: firstDefined(rawTask?.priority, 'Media'),
     dueDate: firstDefined(rawTask?.due_date, rawTask?.dueDate),
     userId: firstDefined(rawTask?.user_id, rawTask?.userId),
+    incidentId: firstDefined(rawTask?.incident_id, rawTask?.incidentId),
+  };
+}
+
+function normalizeIncident(rawIncident) {
+  const status = getStatusKey(rawIncident?.status);
+  const image = getImage(rawIncident);
+  const tasks = asArray(rawIncident?.tasks).map(normalizeTask);
+  const latestTask = tasks[0] || null;
+
+  return {
+    id: firstDefined(rawIncident?.id, rawIncident?.incident_id),
+    title: firstDefined(rawIncident?.title, 'Incidencia sin titulo'),
+    description: firstDefined(rawIncident?.description, ''),
+    location: firstDefined(rawIncident?.location, 'Sin ubicacion'),
+    status,
+    statusLabel: STATUS_LABELS[rawIncident?.status] || STATUS_LABELS[status] || 'Pendiente',
+    image,
+    createdAt: firstDefined(rawIncident?.created_at, rawIncident?.createdAt),
+    updatedAt: firstDefined(rawIncident?.updated_at, rawIncident?.updatedAt),
+    startAt: latestTask?.startAt || null,
+    endAt: latestTask?.endAt || null,
+    allDay: Boolean(latestTask?.allDay),
+    assignedCleanerName: latestTask?.assignedCleanerName || 'Sin asignar',
+    assignedCleanerRole: 'Conserje asignado',
+    tasks,
+    tasksCount: firstDefined(rawIncident?.tasks_count, tasks.length, 0),
+    latestTask,
+    priority: firstDefined(rawIncident?.priority, latestTask?.priority, 'Media'),
+    dueDate: latestTask?.dueDate || null,
+    userId: firstDefined(rawIncident?.user_id, rawIncident?.userId),
+    reporterName: getPersonName(rawIncident?.user, 'Sin reportante'),
   };
 }
 
@@ -153,30 +147,12 @@ export function buildIncidentStats(incidents) {
   );
 }
 
-async function fetchTasksCollection(token) {
-  const candidateEndpoints = [
-    '/api/tasks',
-    '/api/incidents',
-  ];
-
-  let lastError = null;
-
-  for (const endpoint of candidateEndpoints) {
-    try {
-      return await fetchJson(endpoint, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
-}
-
 export async function getIncidents(token) {
-  const data = await fetchTasksCollection(token);
-  return asArray(data).map(normalizeTaskAsIncident);
+  const data = await fetchJson('/api/incidents', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  return asArray(data).map(normalizeIncident);
 }
 
 function appendIfPresent(formData, key, value) {

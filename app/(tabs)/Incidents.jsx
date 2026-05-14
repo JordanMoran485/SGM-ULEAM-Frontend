@@ -103,9 +103,9 @@ export default function IncidentsScreen() {
                 <View>
                     <View style={styles.header}>
                         <Text style={styles.eyebrow}>Seguimiento</Text>
-                        <Text style={styles.title}>Incidencias y tareas</Text>
+                        <Text style={styles.title}>Bandeja de incidencias</Text>
                         <Text style={styles.subtitle}>
-                            Consulta responsables, estado operativo y tareas asociadas desde una sola vista.
+                            Revisa el listado general, el estado operativo y los responsables. El calendario queda reservado para tareas programadas por fecha.
                         </Text>
                     </View>
 
@@ -127,7 +127,7 @@ export default function IncidentsScreen() {
                     <CustomSearchBar
                         onChangeText={setSearch}
                         value={search}
-                        placeholder="Buscar por tarea, ubicación o responsable"
+                        placeholder="Buscar por incidencia, ubicación o responsable"
                     />
 
                     <View style={styles.filterRow}>
@@ -149,12 +149,12 @@ export default function IncidentsScreen() {
                     </View>
 
                     <View style={styles.listHeaderRow}>
-                        <Text style={styles.sectionTitle}>Listado operativo</Text>
+                        <Text style={styles.sectionTitle}>Listado general</Text>
                         <TouchableOpacity
                             style={styles.reportButton}
                             onPress={() => router.push('/ReportIncident')}
                         >
-                            <Text style={styles.reportButtonText}>Reportar</Text>
+                            <Text style={styles.reportButtonText}>Nueva incidencia</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -169,7 +169,7 @@ export default function IncidentsScreen() {
                         style={styles.card}
                         onPress={() => router.push({
                             pathname: "/IncidentDetail",
-                            params: { id: String(item.id) }
+                            params: { id: String(item.id), type: 'incident' }
                         })}
                     >
                         <View style={styles.cardHeader}>
@@ -202,7 +202,7 @@ export default function IncidentsScreen() {
 
                         <View style={styles.footerRow}>
                             <Text style={styles.footerInfo}>
-                                {item.tasksCount} {item.tasksCount === 1 ? "tarea asociada" : "tareas asociadas"}
+                                Estado registrado: {item.statusLabel}
                             </Text>
                             <Text style={styles.footerAction}>Ver detalle</Text>
                         </View>
@@ -213,7 +213,7 @@ export default function IncidentsScreen() {
                 <View style={styles.emptyCard}>
                     <Text style={styles.emptyTitle}>No hay resultados disponibles</Text>
                     <Text style={styles.emptyText}>
-                        Prueba con otro filtro o actualiza la lista para volver a consultar el backend.
+                        Prueba con otro filtro o actualiza la lista para volver a consultar la bandeja general.
                     </Text>
                 </View>
             }

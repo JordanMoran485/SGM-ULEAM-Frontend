@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useMemo } from 'react';
 import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
+import { getTasks } from '../services/tasks';
 
 export const AppContext = createContext({});
 
@@ -10,6 +11,8 @@ export const AppProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [incidents, setIncidents] = useState([]);
   const [incidentsLoaded, setIncidentsLoaded] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
 
   const login = (userData, userToken) => {
     setUser(userData);
@@ -21,6 +24,8 @@ export const AppProvider = ({ children }) => {
     setToken(null);
     setIncidents([]);
     setIncidentsLoaded(false);
+    setTasks([]);
+    setTasksLoaded(false);
   };
 
   const updateProfileImage = async (image) => {
@@ -51,6 +56,19 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const refreshTasks = async () => {
+    setIsLoading(true);
+
+    try {
+      const nextTasks = await getTasks(token);
+      setTasks(nextTasks);
+      setTasksLoaded(true);
+      return nextTasks;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const stats = useMemo(() => buildIncidentStats(incidents), [incidents]);
 
   return (
@@ -62,6 +80,9 @@ export const AppProvider = ({ children }) => {
         incidents,
         incidentsLoaded,
         refreshIncidents,
+        tasks,
+        tasksLoaded,
+        refreshTasks,
         stats,
         login, 
         logout, 

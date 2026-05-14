@@ -50,6 +50,10 @@ function getDateSource(item) {
     return item.startAt || item.dueDate || item.updatedAt || item.createdAt || null;
 }
 
+function hasScheduledDate(item) {
+    return Boolean(item?.startAt || item?.dueDate);
+}
+
 function getDateKey(rawDate) {
     if (!rawDate) {
         return "Sin fecha";
@@ -175,6 +179,102 @@ function buildWeekDays(anchorDate) {
     return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
 }
 
+function getTodayReference() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+function getDateRelation(dateKey, today = getTodayReference()) {
+    if (dateKey === "Sin fecha") {
+        return "undated";
+    }
+
+    const parsed = new Date(`${dateKey}T12:00:00`);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return "undated";
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+
+    if (parsed.getTime() < today.getTime()) {
+        return "past";
+    }
+
+    if (parsed.getTime() === today.getTime()) {
+        return "today";
+    }
+
+    return "upcoming";
+}
+
+function getSectionBadgeLabel(dateKey, today = getTodayReference()) {
+    const relation = getDateRelation(dateKey, today);
+
+    if (relation === "today") {
+        return "Hoy";
+    }
+
+    if (relation === "upcoming") {
+        return "Proxima";
+    }
+
+    if (relation === "past") {
+        return "Pasada";
+    }
+
+    return "Sin fecha";
+}
+
+function compareSectionKeys(left, right, today = getTodayReference()) {
+    const leftRelation = getDateRelation(left, today);
+    const rightRelation = getDateRelation(right, today);
+    const relationOrder = {
+        today: 0,
+        upcoming: 1,
+        past: 2,
+        undated: 3,
+    };
+    const relationDiff = relationOrder[leftRelation] - relationOrder[rightRelation];
+
+    if (relationDiff !== 0) {
+        return relationDiff;
+    }
+
+    if (leftRelation === "upcoming") {
+        return left.localeCompare(right);
+    }
+
+    if (leftRelation === "past") {
+        return right.localeCompare(left);
+    }
+
+    return left.localeCompare(right);
+}
+
+function pickInitialDateKey(sections, today = getTodayReference()) {
+    const todayKey = today.toISOString().slice(0, 10);
+
+    if (sections.some((section) => section.dateKey === todayKey)) {
+        return todayKey;
+    }
+
+    const nextCurrent = sections.find((section) => getDateRelation(section.dateKey, today) === "upcoming");
+
+    if (nextCurrent) {
+        return nextCurrent.dateKey;
+    }
+
+    const latestPast = sections.find((section) => getDateRelation(section.dateKey, today) === "past");
+
+    if (latestPast) {
+        return latestPast.dateKey;
+    }
+
+    return sections[0]?.dateKey ?? null;
+}
+
 function taskBelongsToSlot(task, dayDate, hour) {
     const start = getTaskStart(task);
 
@@ -221,7 +321,7 @@ function escapeHtml(value) {
 function buildScheduleHtml(items, user, selectedDate) {
     const anchorDate = selectedDate && selectedDate !== "Sin fecha"
         ? new Date(`${selectedDate}T12:00:00`)
-        : getTaskStart(items[0]) || new Date();
+        : getTodayReference();
     const weekDays = buildWeekDays(anchorDate);
     const hourSlots = Array.from({ length: 14 }, (_, index) => 6 + index);
     const headerCells = weekDays
@@ -339,24 +439,26 @@ export default function CalendarScreen() {
     const [selectedDate, setSelectedDate] = useState(null);
     const [isExporting, setIsExporting] = useState(false);
     const router = useRouter();
-    const { user, incidents, incidentsLoaded, refreshIncidents } = useAppContext();
+    const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
     const role = firstRole(user);
     const isConcierge = role === "conserje";
 
     useEffect(() => {
-        if (!incidentsLoaded) {
-            refreshIncidents().catch((error) => {
+        if (!tasksLoaded) {
+            refreshTasks().catch((error) => {
                 Alert.alert("Error al cargar calendario", error?.message || "No se pudieron cargar las tareas.");
             });
         }
-    }, [incidentsLoaded, refreshIncidents]);
+    }, [tasksLoaded, refreshTasks]);
 
     const visibleItems = useMemo(() => {
         const source = isConcierge
-            ? incidents.filter((item) => isTaskForCurrentUser(item, user))
-            : incidents;
+            ? tasks.filter((item) => isTaskForCurrentUser(item, user))
+            : tasks;
 
-        return [...source].sort((a, b) => {
+        return source
+            .filter((item) => hasScheduledDate(item))
+            .sort((a, b) => {
             const dateDiff = new Date(getDateSource(a) || 0).getTime() - new Date(getDateSource(b) || 0).getTime();
 
             if (dateDiff !== 0) {
@@ -365,7 +467,9 @@ export default function CalendarScreen() {
 
             return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
         });
-    }, [incidents, isConcierge, user]);
+    }, [tasks, isConcierge, user]);
+
+    const todayReference = useMemo(() => getTodayReference(), []);
 
     const sections = useMemo(() => {
         const grouped = visibleItems.reduce((accumulator, item) => {
@@ -380,24 +484,15 @@ export default function CalendarScreen() {
         }, {});
 
         return Object.entries(grouped)
-            .sort(([left], [right]) => {
-                if (left === "Sin fecha") {
-                    return 1;
-                }
-
-                if (right === "Sin fecha") {
-                    return -1;
-                }
-
-                return left.localeCompare(right);
-            })
+            .sort(([left], [right]) => compareSectionKeys(left, right, todayReference))
             .map(([dateKey, items]) => ({
                 dateKey,
                 label: formatDateLabel(dateKey),
                 longLabel: formatDateLong(dateKey),
+                badgeLabel: getSectionBadgeLabel(dateKey, todayReference),
                 items,
             }));
-    }, [visibleItems]);
+    }, [visibleItems, todayReference]);
 
     useEffect(() => {
         if (!sections.length) {
@@ -406,9 +501,9 @@ export default function CalendarScreen() {
         }
 
         if (!selectedDate || !sections.some((section) => section.dateKey === selectedDate)) {
-            setSelectedDate(sections[0].dateKey);
+            setSelectedDate(pickInitialDateKey(sections, todayReference));
         }
-    }, [sections, selectedDate]);
+    }, [sections, selectedDate, todayReference]);
 
     const activeSection = useMemo(() => {
         return sections.find((section) => section.dateKey === selectedDate) || sections[0] || null;
@@ -419,7 +514,7 @@ export default function CalendarScreen() {
 
     const exportSchedule = async () => {
         if (!visibleItems.length) {
-            Alert.alert("Sin tareas", "No hay tareas para exportar en el horario.");
+            Alert.alert("Sin tareas", "No hay tareas programadas para exportar en el horario.");
             return;
         }
 
@@ -490,15 +585,15 @@ export default function CalendarScreen() {
                 <Text style={styles.title}>Calendario de tareas</Text>
                 <Text style={styles.subtitle}>
                     {isConcierge
-                        ? "Consulta tus tareas por fecha, revisa prioridades y abre el detalle de cada reporte."
-                        : "Consulta la carga operativa por fecha y revisa las tareas asignadas a cada conserje."}
+                        ? "Consulta solo tus tareas programadas por fecha y descarga tu horario semanal."
+                        : "Consulta la agenda programada por fecha y revisa las tareas asignadas a cada conserje."}
                 </Text>
             </View>
 
             <View style={styles.summaryCard}>
                 <View style={styles.summaryMetric}>
                     <Text style={styles.summaryValue}>{visibleItems.length}</Text>
-                    <Text style={styles.summaryLabel}>Tareas visibles</Text>
+                    <Text style={styles.summaryLabel}>Programadas</Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryMetric}>
@@ -546,6 +641,9 @@ export default function CalendarScreen() {
                                 <Text style={[styles.dayChipLabel, active && styles.dayChipLabelActive]}>
                                     {section.label}
                                 </Text>
+                                <Text style={[styles.dayChipBadge, active && styles.dayChipBadgeActive]}>
+                                    {section.badgeLabel}
+                                </Text>
                                 <Text style={[styles.dayChipCount, active && styles.dayChipCountActive]}>
                                     {section.items.length} tarea{section.items.length === 1 ? "" : "s"}
                                 </Text>
@@ -554,7 +652,7 @@ export default function CalendarScreen() {
                     })
                 ) : (
                     <View style={styles.emptyDateState}>
-                        <Text style={styles.emptyDateText}>No hay tareas cargadas todavia.</Text>
+                        <Text style={styles.emptyDateText}>No hay tareas programadas con fecha todavia.</Text>
                     </View>
                 )}
             </ScrollView>
@@ -582,7 +680,7 @@ export default function CalendarScreen() {
                                 onPress={() =>
                                     router.push({
                                         pathname: "/IncidentDetail",
-                                        params: { id: String(item.id) },
+                                        params: { id: String(item.id), type: 'task' },
                                     })
                                 }
                             >
@@ -619,9 +717,9 @@ export default function CalendarScreen() {
                 </View>
             ) : (
                 <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Sin tareas para mostrar</Text>
+                    <Text style={styles.emptyTitle}>Sin tareas programadas</Text>
                     <Text style={styles.emptyText}>
-                        Cuando el backend devuelva tareas asignadas, apareceran agrupadas por fecha en esta vista.
+                        Aqui solo aparecen tareas que tienen fecha asignada para que el calendario no duplique la bandeja de incidencias.
                     </Text>
                 </View>
             )}
@@ -743,6 +841,17 @@ const styles = StyleSheet.create({
     },
     dayChipLabelActive: {
         color: "#10342d",
+    },
+    dayChipBadge: {
+        color: "#6b7d78",
+        fontSize: 11,
+        fontWeight: "700",
+        marginBottom: 6,
+        textTransform: "uppercase",
+        letterSpacing: 0.4,
+    },
+    dayChipBadgeActive: {
+        color: "#355f53",
     },
     dayChipCount: {
         color: "#687974",

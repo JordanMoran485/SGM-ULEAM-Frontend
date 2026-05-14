@@ -30,12 +30,19 @@ function getStatusTone(status) {
 export default function IncidentDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
-    const { incidents } = useAppContext();
+    const { incidents, tasks } = useAppContext();
     const [imageFailed, setImageFailed] = useState(false);
+    const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
-        return incidents.find((currentIncident) => String(currentIncident.id) === String(params.id));
-    }, [incidents, params.id]);
+        if (recordType === 'task') {
+            return tasks.find((currentTask) => String(currentTask.id) === String(params.id))
+                || incidents.find((currentIncident) => String(currentIncident.id) === String(params.id));
+        }
+
+        return incidents.find((currentIncident) => String(currentIncident.id) === String(params.id))
+            || tasks.find((currentTask) => String(currentTask.id) === String(params.id));
+    }, [incidents, params.id, recordType, tasks]);
 
     const imageUri = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
@@ -47,9 +54,11 @@ export default function IncidentDetail() {
 
             <View style={styles.header}>
                 <Text style={styles.eyebrow}>Seguimiento</Text>
-                <Text style={styles.screenTitle}>Detalle de incidencia</Text>
+                <Text style={styles.screenTitle}>{recordType === 'task' ? 'Detalle de tarea' : 'Detalle de incidencia'}</Text>
                 <Text style={styles.subtitle}>
-                    Revisa el estado, responsable, evidencia visual y tareas asociadas desde una sola vista.
+                    {recordType === 'task'
+                        ? 'Revisa el estado, responsable, evidencia visual y programacion de la tarea.'
+                        : 'Revisa el estado, responsable, evidencia visual y tareas asociadas desde una sola vista.'}
                 </Text>
             </View>
 

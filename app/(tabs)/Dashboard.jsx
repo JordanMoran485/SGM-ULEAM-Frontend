@@ -18,18 +18,6 @@ function getInitials(name) {
         .join('');
 }
 
-function getPriorityWeight(priority) {
-    if (priority === 'Alta') {
-        return 3;
-    }
-
-    if (priority === 'Media') {
-        return 2;
-    }
-
-    return 1;
-}
-
 function getStatusTone(status) {
     if (status === 'completed') {
         return { dot: styles.dotCompleted, badge: styles.badgeCompleted, badgeText: styles.badgeTextCompleted };
@@ -42,61 +30,138 @@ function getStatusTone(status) {
     return { dot: styles.dotPending, badge: styles.badgePending, badgeText: styles.badgeTextPending };
 }
 
-function groupByLocation(items) {
-    const grouped = items.reduce((accumulator, item) => {
-        const location = item.location || 'Sin ubicación';
-        accumulator[location] = (accumulator[location] || 0) + 1;
-        return accumulator;
-    }, {});
+function hasScheduledDate(item) {
+    return Boolean(item?.startAt || item?.dueDate);
+}
 
-    return Object.entries(grouped)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
+function getTaskStart(item) {
+    const raw = item?.startAt || item?.dueDate || null;
+
+    if (!raw) {
+        return null;
+    }
+
+    const parsed = new Date(raw);
+
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+
+    if (!item?.startAt && item?.dueDate) {
+        parsed.setHours(6, 0, 0, 0);
+    }
+
+    return parsed;
+}
+
+function getTodayReference() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+function isSameDay(left, right) {
+    return (
+        left.getFullYear() === right.getFullYear() &&
+        left.getMonth() === right.getMonth() &&
+        left.getDate() === right.getDate()
+    );
+}
+
+function formatAgendaDate(date) {
+    return new Intl.DateTimeFormat('es-EC', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(date);
+}
+
+function formatAgendaDay(date) {
+    return new Intl.DateTimeFormat('es-EC', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+    }).format(date);
+}
+
+function formatTaskDate(item) {
+    const start = getTaskStart(item);
+
+    if (!start) {
+        return 'Sin fecha programada';
+    }
+
+    return formatAgendaDate(start);
 }
 
 export default function Dashboard() {
     const router = useRouter();
-    const { user, stats, incidents, incidentsLoaded, refreshIncidents } = useAppContext();
+    const { user, stats, incidents, incidentsLoaded, refreshIncidents, tasks, tasksLoaded, refreshTasks } = useAppContext();
 
     useEffect(() => {
-        if (!incidentsLoaded) {
+        if (!tasksLoaded) {
             console.log('Dashboard API base URL:', API_BASE_URL);
-            refreshIncidents().catch((error) => {
+            refreshTasks().catch((error) => {
                 console.error('Error al cargar dashboard:', error);
                 Alert.alert(
                     'Error al cargar Dashboard',
-                    error?.message || 'No se pudieron cargar las incidencias.'
+                    error?.message || 'No se pudieron cargar las tareas.'
                 );
             });
         }
-    }, [incidentsLoaded, refreshIncidents]);
+
+        if (!incidentsLoaded) {
+            refreshIncidents().catch((error) => {
+                console.error('Error al cargar incidencias del dashboard:', error);
+            });
+        }
+    }, [incidentsLoaded, refreshIncidents, tasksLoaded, refreshTasks]);
 
     const userName = user?.name || 'Usuario';
-
-    const urgentItem = useMemo(() => {
-        return [...incidents]
-            .filter((item) => item.status !== 'completed')
-            .sort((a, b) => {
-                const priorityDiff = getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
-
-                if (priorityDiff !== 0) {
-                    return priorityDiff;
-                }
-
-                return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-            })[0] || null;
-    }, [incidents]);
-
-    const recentItems = incidents.slice(0, 5);
-    const hotspotLocations = groupByLocation(incidents);
+    const todayReference = useMemo(() => getTodayReference(), []);
     const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+    const scheduledItems = useMemo(() => {
+        return tasks
+            .filter((item) => hasScheduledDate(item))
+            .sort((a, b) => {
+                const left = getTaskStart(a)?.getTime() ?? 0;
+                const right = getTaskStart(b)?.getTime() ?? 0;
+                return left - right;
+            });
+    }, [tasks]);
+
+    const todayAgenda = useMemo(() => {
+        return scheduledItems.filter((item) => {
+            const start = getTaskStart(item);
+            return start ? isSameDay(start, todayReference) : false;
+        });
+    }, [scheduledItems, todayReference]);
+
+    const nextScheduledItem = useMemo(() => {
+        const now = new Date();
+
+        return scheduledItems.find((item) => {
+            const start = getTaskStart(item);
+            return start && start.getTime() >= now.getTime();
+        }) || null;
+    }, [scheduledItems]);
+
+    const recentPendingItems = useMemo(() => {
+        return [...incidents]
+            .filter((item) => item.status === 'pending' || item.status === 'in_progress')
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+            .slice(0, 4);
+    }, [incidents]);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <Stack.Screen options={{
                 title: 'Panel de Control',
                 headerLargeTitle: true,
-                headerStyle: { backgroundColor: '#f3f6f4' }
+                headerStyle: { backgroundColor: '#f3f6f4' },
             }} />
 
             <View style={styles.header}>
@@ -104,7 +169,7 @@ export default function Dashboard() {
                     <Text style={styles.eyebrow}>Resumen operativo</Text>
                     <Text style={styles.title}>Hola, {userName}</Text>
                     <Text style={styles.subtitle}>
-                        Prioriza tareas, revisa la carga activa y detecta rápido las zonas con más incidencias.
+                        Revisa la bandeja general y la agenda programada sin repetir vistas ni accesos redundantes.
                     </Text>
                 </View>
 
@@ -120,40 +185,34 @@ export default function Dashboard() {
                 style={styles.heroCard}
             >
                 <View style={styles.heroTopRow}>
-                    <View>
-                        <Text style={styles.heroLabel}>Carga en curso</Text>
-                        <Text style={styles.heroValue}>{stats.inProgress}</Text>
+                    <View style={styles.heroCopy}>
+                        <Text style={styles.heroLabel}>Agenda de hoy</Text>
+                        <Text style={styles.heroValue}>{todayAgenda.length}</Text>
                         <Text style={styles.heroHelper}>
-                            {stats.pending} pendientes y {stats.completed} completadas
+                            {todayAgenda.length === 1 ? 'tarea programada hoy' : 'tareas programadas hoy'}
                         </Text>
                     </View>
 
                     <View style={styles.heroProgressPill}>
                         <Text style={styles.heroProgressValue}>{completionRate}%</Text>
-                        <Text style={styles.heroProgressLabel}>resuelto</Text>
+                        <Text style={styles.heroProgressLabel}>completado</Text>
                     </View>
                 </View>
 
-                <View style={styles.heroBottomRow}>
-                    <TouchableOpacity
-                        style={styles.heroActionPrimary}
-                        onPress={() => router.push('/(tabs)/Incidents')}
-                    >
-                        <Text style={styles.heroActionPrimaryText}>Ver tareas</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.heroActionSecondary}
-                        onPress={() => router.push('/(tabs)/Profile')}
-                    >
-                        <Text style={styles.heroActionSecondaryText}>Mi perfil</Text>
-                    </TouchableOpacity>
+                <View style={styles.heroHighlight}>
+                    <Text style={styles.heroHighlightLabel}>Próxima tarea</Text>
+                    <Text style={styles.heroHighlightTitle}>
+                        {nextScheduledItem?.title || 'No hay tareas próximas'}
+                    </Text>
+                    <Text style={styles.heroHighlightMeta}>
+                        {nextScheduledItem ? formatTaskDate(nextScheduledItem) : 'Cuando existan tareas con fecha aparecerán aquí.'}
+                    </Text>
                 </View>
             </LinearGradient>
 
             <View style={styles.metricsGrid}>
                 <View style={[styles.metricCard, styles.metricCardNeutral]}>
-                    <Text style={styles.metricLabel}>Total</Text>
+                    <Text style={styles.metricLabel}>Bandeja total</Text>
                     <Text style={styles.metricValue}>{stats.total}</Text>
                 </View>
                 <View style={[styles.metricCard, styles.metricCardWarning]}>
@@ -167,70 +226,14 @@ export default function Dashboard() {
             </View>
 
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Prioridad del día</Text>
-            </View>
-
-            {urgentItem ? (
-                <TouchableOpacity
-                    style={styles.focusCard}
-                    onPress={() => router.push({
-                        pathname: '/IncidentDetail',
-                        params: { id: String(urgentItem.id) }
-                    })}
-                >
-                    <View style={styles.focusCardHeader}>
-                        <Text style={styles.focusTitle}>{urgentItem.title}</Text>
-                        <View style={styles.priorityPill}>
-                            <Text style={styles.priorityPillText}>{urgentItem.priority || 'Media'}</Text>
-                        </View>
-                    </View>
-                    <Text style={styles.focusMeta}>{urgentItem.location}</Text>
-                    <Text style={styles.focusDescription} numberOfLines={2}>
-                        {urgentItem.description || 'Sin descripción adicional.'}
-                    </Text>
-                    <View style={styles.focusFooter}>
-                        <Text style={styles.focusFooterText}>Responsable: {urgentItem.assignedCleanerName}</Text>
-                        <Text style={styles.focusFooterLink}>Abrir detalle</Text>
-                    </View>
-                </TouchableOpacity>
-            ) : (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>No hay tareas activas</Text>
-                    <Text style={styles.emptyText}>Cuando existan pendientes aparecerán aquí como prioridad principal.</Text>
-                </View>
-            )}
-
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Zonas con mayor carga</Text>
-            </View>
-
-            <View style={styles.hotspotCard}>
-                {hotspotLocations.length > 0 ? (
-                    hotspotLocations.map(([location, count], index) => (
-                        <View key={`${location}-${index}`} style={styles.hotspotRow}>
-                            <View style={styles.hotspotRank}>
-                                <Text style={styles.hotspotRankText}>{index + 1}</Text>
-                            </View>
-                            <View style={styles.hotspotContent}>
-                                <Text style={styles.hotspotLocation}>{location}</Text>
-                                <Text style={styles.hotspotCount}>{count} reportes asociados</Text>
-                            </View>
-                        </View>
-                    ))
-                ) : (
-                    <Text style={styles.emptyText}>Aún no hay suficiente actividad para identificar zonas críticas.</Text>
-                )}
-            </View>
-
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Actividad reciente</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/Incidents')}>
-                    <Text style={styles.sectionLink}>Ver todo</Text>
+                <Text style={styles.sectionTitle}>Agenda de hoy</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/Calendar')}>
+                    <Text style={styles.sectionLink}>Abrir agenda</Text>
                 </TouchableOpacity>
             </View>
 
-            {recentItems.length > 0 ? (
-                recentItems.map((item) => {
+            {todayAgenda.length > 0 ? (
+                todayAgenda.slice(0, 3).map((item) => {
                     const tone = getStatusTone(item.status);
 
                     return (
@@ -239,7 +242,7 @@ export default function Dashboard() {
                             style={styles.activityCard}
                             onPress={() => router.push({
                                 pathname: '/IncidentDetail',
-                                params: { id: String(item.id) }
+                                params: { id: String(item.id), type: 'task' },
                             })}
                         >
                             <View style={[styles.activityDot, tone.dot]} />
@@ -250,16 +253,97 @@ export default function Dashboard() {
                                         <Text style={[styles.statusBadgeText, tone.badgeText]}>{item.statusLabel}</Text>
                                     </View>
                                 </View>
-                                <Text style={styles.activityMeta}>{item.location}</Text>
-                                <Text style={styles.activityMeta}>Responsable: {item.assignedCleanerName}</Text>
+                                <Text style={styles.activityMeta}>{formatTaskDate(item)}</Text>
+                                <Text style={styles.activityMeta}>{item.location || 'Sin ubicación'}</Text>
                             </View>
                         </TouchableOpacity>
                     );
                 })
             ) : (
                 <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Sin actividad reciente</Text>
-                    <Text style={styles.emptyText}>Las tareas o incidencias más nuevas aparecerán en esta sección.</Text>
+                    <Text style={styles.emptyTitle}>Sin tareas para hoy</Text>
+                    <Text style={styles.emptyText}>
+                        La agenda mostrará aquí las tareas programadas para el día actual.
+                    </Text>
+                </View>
+            )}
+
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Próxima tarea programada</Text>
+            </View>
+
+            {nextScheduledItem ? (
+                <TouchableOpacity
+                    style={styles.focusCard}
+                    onPress={() => router.push({
+                        pathname: '/IncidentDetail',
+                        params: { id: String(nextScheduledItem.id), type: 'task' },
+                    })}
+                >
+                    <View style={styles.focusCardHeader}>
+                        <Text style={styles.focusTitle}>{nextScheduledItem.title}</Text>
+                        <View style={styles.priorityPill}>
+                            <Text style={styles.priorityPillText}>{nextScheduledItem.priority || 'Media'}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.focusMeta}>{formatAgendaDay(getTaskStart(nextScheduledItem))}</Text>
+                    <Text style={styles.focusDescription} numberOfLines={2}>
+                        {nextScheduledItem.description || 'Sin descripción adicional.'}
+                    </Text>
+                    <View style={styles.focusFooter}>
+                        <Text style={styles.focusFooterText}>Responsable: {nextScheduledItem.assignedCleanerName || 'Sin asignar'}</Text>
+                        <Text style={styles.focusFooterLink}>Abrir detalle</Text>
+                    </View>
+                </TouchableOpacity>
+            ) : (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>Sin próxima tarea</Text>
+                    <Text style={styles.emptyText}>
+                        Todavía no hay elementos programados a futuro en la agenda.
+                    </Text>
+                </View>
+            )}
+
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Pendientes recientes</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/Incidents')}>
+                    <Text style={styles.sectionLink}>Abrir incidencias</Text>
+                </TouchableOpacity>
+            </View>
+
+            {recentPendingItems.length > 0 ? (
+                recentPendingItems.map((item) => {
+                    const tone = getStatusTone(item.status);
+
+                    return (
+                        <TouchableOpacity
+                            key={String(item.id)}
+                            style={styles.activityCard}
+                            onPress={() => router.push({
+                                pathname: '/IncidentDetail',
+                                params: { id: String(item.id), type: 'incident' },
+                            })}
+                        >
+                            <View style={[styles.activityDot, tone.dot]} />
+                            <View style={styles.activityBody}>
+                                <View style={styles.activityHeader}>
+                                    <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                                    <View style={[styles.statusBadge, tone.badge]}>
+                                        <Text style={[styles.statusBadgeText, tone.badgeText]}>{item.statusLabel}</Text>
+                                    </View>
+                                </View>
+                                <Text style={styles.activityMeta}>{item.location || 'Sin ubicación'}</Text>
+                                <Text style={styles.activityMeta}>Responsable: {item.assignedCleanerName || 'Sin asignar'}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })
+            ) : (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>Sin pendientes recientes</Text>
+                    <Text style={styles.emptyText}>
+                        Cuando existan incidencias activas aparecerán aquí para seguimiento rápido.
+                    </Text>
                 </View>
             )}
         </ScrollView>
@@ -326,7 +410,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 20,
+        gap: 14,
+        marginBottom: 18,
+    },
+    heroCopy: {
+        flex: 1,
     },
     heroLabel: {
         color: '#9fd0c2',
@@ -362,34 +450,29 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 2,
     },
-    heroBottomRow: {
-        flexDirection: 'row',
-        gap: 10,
+    heroHighlight: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 20,
+        padding: 16,
     },
-    heroActionPrimary: {
-        flex: 1,
-        backgroundColor: '#f3f6f4',
-        borderRadius: 18,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    heroActionPrimaryText: {
-        color: '#10342d',
-        fontSize: 14,
-        fontWeight: '800',
-    },
-    heroActionSecondary: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.18)',
-        borderRadius: 18,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    heroActionSecondaryText: {
-        color: '#ffffff',
-        fontSize: 14,
+    heroHighlightLabel: {
+        color: '#9fd0c2',
+        fontSize: 12,
         fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: 6,
+    },
+    heroHighlightTitle: {
+        color: '#ffffff',
+        fontSize: 18,
+        fontWeight: '800',
+        marginBottom: 4,
+    },
+    heroHighlightMeta: {
+        color: '#d7ebe5',
+        fontSize: 13,
+        lineHeight: 18,
     },
     metricsGrid: {
         flexDirection: 'row',
@@ -478,72 +561,37 @@ const styles = StyleSheet.create({
         color: '#0f2f29',
         fontSize: 13,
         fontWeight: '700',
-        marginBottom: 8,
+        marginBottom: 10,
+        textTransform: 'capitalize',
     },
     focusDescription: {
         color: '#64746f',
         fontSize: 14,
-        lineHeight: 20,
+        lineHeight: 21,
+        marginBottom: 14,
     },
     focusFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 16,
         paddingTop: 14,
         borderTopWidth: 1,
-        borderTopColor: '#edf2ef',
+        borderTopColor: '#eef3f0',
     },
     focusFooterText: {
         color: '#64746f',
         fontSize: 13,
+        flex: 1,
+        marginRight: 10,
     },
     focusFooterLink: {
-        color: '#0f2f29',
+        color: '#10342d',
         fontSize: 13,
         fontWeight: '800',
-    },
-    hotspotCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 18,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 24,
-    },
-    hotspotRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
-    hotspotRank: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        backgroundColor: '#edf4f1',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 12,
-    },
-    hotspotRankText: {
-        color: '#17342d',
-        fontWeight: '800',
-    },
-    hotspotContent: {
-        flex: 1,
-    },
-    hotspotLocation: {
-        color: '#16211e',
-        fontSize: 15,
-        fontWeight: '700',
-        marginBottom: 2,
-    },
-    hotspotCount: {
-        color: '#687974',
-        fontSize: 13,
     },
     activityCard: {
         flexDirection: 'row',
+        alignItems: 'flex-start',
         backgroundColor: '#ffffff',
         borderRadius: 22,
         padding: 16,
@@ -555,17 +603,8 @@ const styles = StyleSheet.create({
         width: 10,
         height: 10,
         borderRadius: 5,
-        marginTop: 7,
+        marginTop: 8,
         marginRight: 12,
-    },
-    dotPending: {
-        backgroundColor: '#c48a21',
-    },
-    dotProgress: {
-        backgroundColor: '#1676a1',
-    },
-    dotCompleted: {
-        backgroundColor: '#1f9b66',
     },
     activityBody: {
         flex: 1,
@@ -574,14 +613,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        gap: 8,
-        marginBottom: 8,
+        gap: 10,
+        marginBottom: 6,
     },
     activityTitle: {
         flex: 1,
         color: '#16211e',
         fontSize: 16,
         fontWeight: '800',
+    },
+    activityMeta: {
+        color: '#64746f',
+        fontSize: 13,
+        lineHeight: 19,
     },
     statusBadge: {
         borderRadius: 999,
@@ -591,6 +635,15 @@ const styles = StyleSheet.create({
     statusBadgeText: {
         fontSize: 11,
         fontWeight: '800',
+    },
+    dotPending: {
+        backgroundColor: '#c48a21',
+    },
+    dotProgress: {
+        backgroundColor: '#1676a1',
+    },
+    dotCompleted: {
+        backgroundColor: '#1f9b66',
     },
     badgePending: {
         backgroundColor: '#f5ebd8',
@@ -609,11 +662,6 @@ const styles = StyleSheet.create({
     },
     badgeTextCompleted: {
         color: '#1b8659',
-    },
-    activityMeta: {
-        color: '#687974',
-        fontSize: 13,
-        lineHeight: 19,
     },
     emptyCard: {
         backgroundColor: '#ffffff',
