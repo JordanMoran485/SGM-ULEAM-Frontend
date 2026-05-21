@@ -22,8 +22,7 @@ export default function Profile() {
         }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
     const accountStatus = user?.active_state === false ? 'Cuenta desactivada' : 'Cuenta activa';
     const accountStatusTone = user?.active_state === false ? styles.statusAlert : styles.statusGood;
-    const facultyLabel = user?.carrera?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
-    const careerLabel = user?.carrera?.name || (user?.carrera_id ? `Carrera #${user.carrera_id}` : 'No asignada');
+    const facultyLabel = user?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
     const remoteProfileImage = useMemo(() => {
         if (!user?.profile_photo_url) {
             return null;
@@ -178,15 +177,6 @@ export default function Profile() {
                         <Text style={styles.infoBadgeText}>Facultad</Text>
                     </View>
                     <Text style={styles.infoValue}>{facultyLabel}</Text>
-                </View>
-
-                <View style={styles.infoDivider} />
-
-                <View style={styles.infoRow}>
-                    <View style={styles.infoBadge}>
-                        <Text style={styles.infoBadgeText}>Carrera</Text>
-                    </View>
-                    <Text style={styles.infoValue}>{careerLabel}</Text>
                 </View>
 
                 <View style={styles.infoDivider} />

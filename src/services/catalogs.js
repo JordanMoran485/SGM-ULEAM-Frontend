@@ -13,21 +13,12 @@ function asArray(value) {
 }
 
 export async function getRegistrationCatalogs() {
-  const [facultadesResponse, carrerasResponse] = await Promise.all([
-    fetchJson('/api/facultades'),
-    fetchJson('/api/carreras'),
-  ]);
+  const facultadesResponse = await fetchJson('/api/facultades');
 
   const facultades = asArray(facultadesResponse).map((item) => ({
     label: item.name,
     value: String(item.id),
   }));
 
-  const carreras = asArray(carrerasResponse).map((item) => ({
-    label: item.name,
-    value: String(item.id),
-    facultadId: String(item.facultad_id),
-  }));
-
-  return { facultades, carreras };
+  return { facultades };
 }

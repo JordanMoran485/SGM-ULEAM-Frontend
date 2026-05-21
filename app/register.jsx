@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, Keyboard, ScrollView, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -25,23 +25,20 @@ export default function RegisterScreen() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState('');
   const [facultades, setFacultades] = useState([]);
-  const [carreras, setCarreras] = useState([]);
   const { login } = useAppContext();
   const router = useRouter();
 
-  const { control, handleSubmit, watch, setValue, setError, formState: { errors } } = useForm({
+  const { control, handleSubmit, watch, setError, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       lastname: '',
       email: '',
       facultad_id: '',
-      carrera_id: '',
       password: '',
       confirmPassword: ''
     }
   });
 
-  const selectedFacultadId = watch("facultad_id");
   const passwordValue = watch("password");
 
   useEffect(() => {
@@ -52,10 +49,9 @@ export default function RegisterScreen() {
       try {
         const catalogs = await getRegistrationCatalogs();
         setFacultades(catalogs.facultades);
-        setCarreras(catalogs.carreras);
       } catch (error) {
         console.error('Error cargando catálogos:', error);
-        setCatalogError('No se pudieron cargar facultades y carreras desde la base de datos.');
+        setCatalogError('No se pudieron cargar las facultades desde la base de datos.');
       } finally {
         setCatalogLoading(false);
       }
@@ -63,11 +59,6 @@ export default function RegisterScreen() {
 
     loadCatalogs();
   }, []);
-
-  const carrerasDisponibles = useMemo(
-    () => carreras.filter((item) => item.facultadId === selectedFacultadId),
-    [carreras, selectedFacultadId]
-  );
 
   const onSubmit = async (formData) => {
     setLoading(true);
@@ -77,7 +68,7 @@ export default function RegisterScreen() {
         name: formData.name,
         lastname: formData.lastname,
         email: formData.email,
-        carrera_id: Number(formData.carrera_id),
+        facultad_id: Number(formData.facultad_id),
         password: formData.password,
       };
 
@@ -242,42 +233,9 @@ export default function RegisterScreen() {
                     selectedTextStyle={styles.dropdownSelected}
                     itemTextStyle={styles.dropdownItem}
                     value={value}
-                    onChange={(item) => {
-                      onChange(item.value);
-                      setValue('carrera_id', '');
-                    }}
-                  />
-                  <HelperText type="error" visible={!!errors.facultad_id}>{errors.facultad_id?.message}</HelperText>
-                </View>
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="carrera_id"
-              rules={{ required: "Selecciona una carrera" }}
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.field}>
-                  <Dropdown
-                    disable={!selectedFacultadId || catalogLoading || carrerasDisponibles.length === 0}
-                    style={[styles.dropdown, !!errors.carrera_id && styles.dropdownError]}
-                    data={carrerasDisponibles}
-                    labelField="label"
-                    valueField="value"
-                    placeholder={
-                      !selectedFacultadId
-                        ? "Primero elige una facultad"
-                        : catalogLoading
-                          ? "Cargando carreras..."
-                          : "Selecciona carrera"
-                    }
-                    placeholderStyle={styles.dropdownPlaceholder}
-                    selectedTextStyle={styles.dropdownSelected}
-                    itemTextStyle={styles.dropdownItem}
-                    value={value}
                     onChange={(item) => onChange(item.value)}
                   />
-                  <HelperText type="error" visible={!!errors.carrera_id}>{errors.carrera_id?.message}</HelperText>
+                  <HelperText type="error" visible={!!errors.facultad_id}>{errors.facultad_id?.message}</HelperText>
                 </View>
               )}
             />
