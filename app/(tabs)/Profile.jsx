@@ -22,7 +22,7 @@ export default function Profile() {
         }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
     const accountStatus = user?.active_state === false ? 'Cuenta desactivada' : 'Cuenta activa';
     const accountStatusTone = user?.active_state === false ? styles.statusAlert : styles.statusGood;
-    const facultyLabel = user?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
+    const facultyLabel = user?.facultad?.display_name || user?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
     const remoteProfileImage = useMemo(() => {
         if (!user?.profile_photo_url) {
             return null;
