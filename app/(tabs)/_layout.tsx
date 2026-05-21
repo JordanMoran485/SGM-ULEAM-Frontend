@@ -1,12 +1,26 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppContext } from '../../src/context/AppContext';
 
 export default function TabLayout() {
 
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, isAuthHydrated } = useAppContext();
+
+  if (!isAuthHydrated) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f6f4' }}>
+        <ActivityIndicator size="large" color="#0f2f29" />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/Login" />;
+  }
 
 
   return (
