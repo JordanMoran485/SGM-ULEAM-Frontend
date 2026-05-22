@@ -30,6 +30,10 @@ export default function NotificationsScreen() {
     notificationsLoaded,
     refreshNotifications,
     markNotificationRead,
+    tasks,
+    incidents,
+    refreshTasks,
+    refreshIncidents,
     isLoading,
   } = useAppContext();
 
@@ -47,8 +51,28 @@ export default function NotificationsScreen() {
       if (!notification.isRead) {
         await markNotificationRead(notification.id);
       }
+
+      if (notification.taskId) {
+        const hasTaskLoaded = tasks.some(
+          (item) => String(item.id) === String(notification.taskId)
+        );
+
+        if (!hasTaskLoaded) {
+          await refreshTasks();
+        }
+      }
+
+      if (notification.incidentId) {
+        const hasIncidentLoaded = incidents.some(
+          (item) => String(item.id) === String(notification.incidentId)
+        );
+
+        if (!hasIncidentLoaded) {
+          await refreshIncidents();
+        }
+      }
     } catch (error) {
-      console.error('Error al marcar notificacion:', error);
+      console.error('Error al preparar la notificacion:', error);
     }
 
     if (notification.taskId) {

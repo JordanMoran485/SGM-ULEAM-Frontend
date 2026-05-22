@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppContext } from '../src/context/AppContext';
 
@@ -30,8 +30,16 @@ function getStatusTone(status) {
 export default function IncidentDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
-    const { incidents, tasks } = useAppContext();
+    const {
+        incidents,
+        tasks,
+        incidentsLoaded,
+        tasksLoaded,
+        refreshIncidents,
+        refreshTasks,
+    } = useAppContext();
     const [imageFailed, setImageFailed] = useState(false);
+    const [isRecovering, setIsRecovering] = useState(false);
     const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
@@ -44,9 +52,68 @@ export default function IncidentDetail() {
             || tasks.find((currentTask) => String(currentTask.id) === String(params.id));
     }, [incidents, params.id, recordType, tasks]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const recoverRecord = async () => {
+            const needsTaskReload = recordType === 'task' && !incident;
+            const needsIncidentReload = recordType === 'incident' && !incident;
+
+            if (!needsTaskReload && !needsIncidentReload) {
+                return;
+            }
+
+            if (!isMounted) {
+                return;
+            }
+
+            setIsRecovering(true);
+
+            try {
+                if (recordType === 'task') {
+                    await refreshTasks();
+                    await refreshIncidents();
+                } else {
+                    await refreshIncidents();
+                    await refreshTasks();
+                }
+            } finally {
+                if (isMounted) {
+                    setIsRecovering(false);
+                }
+            }
+        };
+
+        const shouldRecover =
+            (recordType === 'task' && tasksLoaded && !incident) ||
+            (recordType === 'incident' && incidentsLoaded && !incident);
+
+        if (shouldRecover) {
+            recoverRecord().catch((error) => {
+                console.error('Error al recuperar detalle:', error);
+                if (isMounted) {
+                    setIsRecovering(false);
+                }
+            });
+        }
+
+        return () => {
+            isMounted = false;
+        };
+    }, [incident, incidentsLoaded, recordType, refreshIncidents, refreshTasks, tasksLoaded]);
+
     const imageUri = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
     const statusTone = getStatusTone(incident?.status);
+
+    if (!incident && isRecovering) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#0f2f29" />
+                <Text style={styles.loadingText}>Actualizando la información de la tarea...</Text>
+            </View>
+        );
+    }
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -145,6 +212,19 @@ export default function IncidentDetail() {
 }
 
 const styles = StyleSheet.create({
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f3f6f4',
+        paddingHorizontal: 24,
+    },
+    loadingText: {
+        color: '#4d5d58',
+        fontSize: 15,
+        marginTop: 14,
+        textAlign: 'center',
+    },
     container: {
         flex: 1,
         backgroundColor: '#f3f6f4',
