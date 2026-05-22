@@ -102,3 +102,13 @@ export async function getTasks(token) {
 
   return asArray(data).map(normalizeTask);
 }
+
+export async function updateTaskStatus(token, taskId, status) {
+  const data = await fetchJson(`/api/tasks/${taskId}`, {
+    method: 'PATCH',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({ status }),
+  });
+
+  return normalizeTask(data?.data || data);
+}

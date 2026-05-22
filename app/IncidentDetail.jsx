@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Alert, View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppContext } from '../src/context/AppContext';
 
@@ -37,9 +37,12 @@ export default function IncidentDetail() {
         tasksLoaded,
         refreshIncidents,
         refreshTasks,
+        updateTaskState,
+        user,
     } = useAppContext();
     const [imageFailed, setImageFailed] = useState(false);
     const [isRecovering, setIsRecovering] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
@@ -105,6 +108,26 @@ export default function IncidentDetail() {
     const imageUri = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
     const statusTone = getStatusTone(incident?.status);
+    const userRole = Array.isArray(user?.roles) ? user.roles[0]?.name : user?.role;
+    const canUpdateTask = recordType === 'task' && userRole === 'conserje' && incident;
+
+    const handleTaskStatusChange = async (nextStatus) => {
+        if (!incident) {
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            await updateTaskState(incident.id, nextStatus);
+            await Promise.all([refreshTasks(), refreshIncidents()]);
+        } catch (error) {
+            console.error('Error al actualizar tarea:', error);
+            Alert.alert('No se pudo actualizar', error?.message || 'No se pudo actualizar la tarea.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     if (!incident && isRecovering) {
         return (
@@ -202,6 +225,36 @@ export default function IncidentDetail() {
                         <Text style={styles.infoText}>Esta incidencia todavía no tiene tareas enlazadas.</Text>
                     )}
                 </View>
+
+                {canUpdateTask ? (
+                    <View style={styles.section}>
+                        <Text style={styles.label}>Acciones de la tarea</Text>
+
+                        {incident.status !== 'in_progress' && incident.status !== 'completed' ? (
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.actionButtonSecondary]}
+                                disabled={isSubmitting}
+                                onPress={() => handleTaskStatusChange('in_progress')}
+                            >
+                                <Text style={styles.actionButtonSecondaryText}>
+                                    {isSubmitting ? 'Actualizando...' : 'Marcar en progreso'}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : null}
+
+                        {incident.status !== 'completed' ? (
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.actionButtonPrimary]}
+                                disabled={isSubmitting}
+                                onPress={() => handleTaskStatusChange('completed')}
+                            >
+                                <Text style={styles.actionButtonPrimaryText}>
+                                    {isSubmitting ? 'Actualizando...' : 'Completar tarea'}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : null}
+                    </View>
+                ) : null}
 
                 <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                     <Text style={styles.backButtonText}>Volver a la lista</Text>
@@ -431,6 +484,30 @@ const styles = StyleSheet.create({
         color: '#64746f',
         fontSize: 14,
         lineHeight: 20,
+    },
+    actionButton: {
+        borderRadius: 16,
+        paddingVertical: 15,
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    actionButtonPrimary: {
+        backgroundColor: '#10342d',
+    },
+    actionButtonPrimaryText: {
+        color: '#ffffff',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    actionButtonSecondary: {
+        backgroundColor: '#eef5f2',
+        borderWidth: 1,
+        borderColor: '#cfe0d9',
+    },
+    actionButtonSecondaryText: {
+        color: '#10342d',
+        fontSize: 15,
+        fontWeight: '700',
     },
     backButton: {
         backgroundColor: '#10342d',

@@ -10,7 +10,7 @@ import React, {
 import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
 import { getNotifications, markNotificationAsRead } from '../services/notifications';
-import { getTasks } from '../services/tasks';
+import { getTasks, updateTaskStatus } from '../services/tasks';
 
 type AppUser = any;
 type IncidentItem = any;
@@ -34,6 +34,7 @@ export interface AppContextValue {
   tasks: TaskItem[];
   tasksLoaded: boolean;
   refreshTasks: () => Promise<TaskItem[]>;
+  updateTaskState: (taskId: string | number, status: string) => Promise<TaskItem>;
   notifications: NotificationItem[];
   notificationsLoaded: boolean;
   refreshNotifications: () => Promise<NotificationItem[]>;
@@ -179,6 +180,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateTaskState = async (taskId: string | number, status: string) => {
+    if (!token) {
+      throw new Error('No hay una sesión activa.');
+    }
+
+    setIsLoading(true);
+
+    try {
+      const updatedTask = await updateTaskStatus(token, taskId, status);
+
+      setTasks((current) =>
+        current.map((item) => (String(item.id) === String(updatedTask.id) ? updatedTask : item))
+      );
+
+      return updatedTask;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshNotifications = async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
@@ -228,6 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     tasks,
     tasksLoaded,
     refreshTasks,
+    updateTaskState,
     notifications,
     notificationsLoaded,
     refreshNotifications,
