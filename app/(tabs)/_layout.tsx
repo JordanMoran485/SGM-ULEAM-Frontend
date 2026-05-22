@@ -8,7 +8,7 @@ import { useAppContext } from '../../src/context/AppContext';
 export default function TabLayout() {
 
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isAuthHydrated } = useAppContext();
+  const { isAuthenticated, isAuthHydrated, unreadNotificationsCount } = useAppContext();
 
   if (!isAuthHydrated) {
     return (
@@ -69,11 +69,32 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="Tasks"
+        options={{
+          title: 'Mis tareas',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="clipboard-check-outline" size={28} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="Calendar"
         options={{
           title: 'Agenda',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="calendar-month-outline" size={28} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="Notifications"
+        options={{
+          title: 'Avisos',
+          tabBarBadge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="bell-outline" size={28} color={color} />
           ),
         }}
       />

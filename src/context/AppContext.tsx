@@ -9,11 +9,13 @@ import React, {
 } from 'react';
 import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
+import { getNotifications, markNotificationAsRead } from '../services/notifications';
 import { getTasks } from '../services/tasks';
 
 type AppUser = any;
 type IncidentItem = any;
 type TaskItem = any;
+type NotificationItem = any;
 
 interface IncidentStats {
   total: number;
@@ -32,6 +34,11 @@ export interface AppContextValue {
   tasks: TaskItem[];
   tasksLoaded: boolean;
   refreshTasks: () => Promise<TaskItem[]>;
+  notifications: NotificationItem[];
+  notificationsLoaded: boolean;
+  refreshNotifications: () => Promise<NotificationItem[]>;
+  markNotificationRead: (notificationId: string) => Promise<void>;
+  unreadNotificationsCount: number;
   stats: IncidentStats;
   login: (userData: AppUser, userToken: string) => void;
   logout: () => void;
@@ -53,6 +60,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [incidentsLoaded, setIncidentsLoaded] = useState(false);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoaded, setNotificationsLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -97,6 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setToken(userToken);
     setIncidentsLoaded(false);
     setTasksLoaded(false);
+    setNotificationsLoaded(false);
 
     AsyncStorage.setItem(
       AUTH_STORAGE_KEY,
@@ -113,6 +123,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIncidentsLoaded(false);
     setTasks([]);
     setTasksLoaded(false);
+    setNotifications([]);
+    setNotificationsLoaded(false);
 
     AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch((error) => {
       console.error('No se pudo limpiar la sesión:', error);
@@ -167,7 +179,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshNotifications = async () => {
+    if (!token) {
+      throw new Error('No hay una sesión activa.');
+    }
+
+    setIsLoading(true);
+
+    try {
+      const nextNotifications = await getNotifications(token);
+      setNotifications(nextNotifications);
+      setNotificationsLoaded(true);
+      return nextNotifications;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const markNotificationRead = async (notificationId: string) => {
+    if (!token) {
+      throw new Error('No hay una sesión activa.');
+    }
+
+    await markNotificationAsRead(token, notificationId);
+
+    setNotifications((current) =>
+      current.map((item) =>
+        item.id === notificationId
+          ? { ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }
+          : item
+      )
+    );
+  };
+
   const stats = useMemo<IncidentStats>(() => buildIncidentStats(incidents), [incidents]);
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((item) => !item.isRead).length,
+    [notifications]
+  );
 
   const value: AppContextValue = {
     user,
@@ -179,6 +228,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     tasks,
     tasksLoaded,
     refreshTasks,
+    notifications,
+    notificationsLoaded,
+    refreshNotifications,
+    markNotificationRead,
+    unreadNotificationsCount,
     stats,
     login,
     logout,

@@ -126,6 +126,10 @@ function normalizeIncident(rawIncident) {
     dueDate: latestTask?.dueDate || null,
     userId: firstDefined(rawIncident?.user_id, rawIncident?.userId),
     reporterName: getPersonName(rawIncident?.user, 'Sin reportante'),
+    approvalStatus: firstDefined(rawIncident?.review_status, rawIncident?.reviewStatus, 'Pendiente de revision'),
+    reviewNotes: firstDefined(rawIncident?.review_notes, rawIncident?.reviewNotes, ''),
+    reviewedAt: firstDefined(rawIncident?.reviewed_at, rawIncident?.reviewedAt),
+    reviewedByName: getPersonName(rawIncident?.reviewer, 'Sin revisor'),
   };
 }
 
