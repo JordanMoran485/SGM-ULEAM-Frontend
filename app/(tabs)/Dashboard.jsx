@@ -279,56 +279,41 @@ export default function Dashboard() {
                     <SkeletonChartCard shimmer={shimmer} />
                 ) : (
                     <View style={styles.chartCard}>
-                        {/* Header dentro de la card */}
-                        <View style={styles.chartSummaryRow}>
-                            <View style={styles.chartSummaryTop}>
-                                <Text style={styles.chartEyebrow}>PROGRESO SEMANAL</Text>
-                                {prevWeekTotal > 0 && (
-                                    <View style={[
-                                        styles.chartTrendPill,
-                                        { backgroundColor: weekTotal >= prevWeekTotal ? '#DCFCE7' : '#FFE4E8' },
-                                    ]}>
-                                        <MaterialCommunityIcons
-                                            name={weekTotal >= prevWeekTotal ? 'trending-up' : 'trending-down'}
-                                            size={13}
-                                            color={weekTotal >= prevWeekTotal ? '#22C55E' : '#F43F5E'}
-                                        />
-                                        <Text style={[
-                                            styles.chartTrendText,
-                                            { color: weekTotal >= prevWeekTotal ? '#22C55E' : '#F43F5E' },
-                                        ]}>
-                                            {weekTotal >= prevWeekTotal ? '+' : ''}{weekTotal - prevWeekTotal} vs sem. ant.
-                                        </Text>
-                                    </View>
-                                )}
+                        {/* Header */}
+                        <View style={styles.chartHeader}>
+                            <View>
+                                <Text style={styles.chartEyebrow}>Reportes Solucionados</Text>
+                                <View style={styles.chartNumRow}>
+                                    <Text style={styles.chartBigNum}>{weekTotal}</Text>
+                                    <Text style={styles.chartWeekLabel}>esta semana</Text>
+                                </View>
                             </View>
-                            <Text style={styles.chartSummaryLine}>
-                                <Text style={styles.chartSummaryNum}>{weekTotal}</Text>
-                                {weekTotal === 1 ? '  tarea completada' : '  tareas completadas'}
-                            </Text>
+                            <View style={styles.chartIconBox}>
+                                <MaterialCommunityIcons name="chart-bar" size={24} color="#2D3FE0" />
+                            </View>
                         </View>
 
-                        <View style={{ height: 1, backgroundColor: '#F1F3FF' }} />
-
+                        {/* Barras */}
                         <View style={styles.chartBars}>
                             {weeklyData.map((day, index) => {
                                 const isToday = index === todayIndex;
                                 const barH = day.count > 0
-                                    ? Math.max((day.count / chartMax) * 120, 8)
-                                    : 3;
+                                    ? Math.max((day.count / chartMax) * 108, 8)
+                                    : 4;
+                                const dayFull = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][index];
                                 return (
                                     <View key={day.label} style={styles.chartBarCol}>
-                                        {day.count > 0 && (
-                                            <Text style={[styles.chartCount, isToday && styles.chartCountToday]}>
-                                                {day.count}
-                                            </Text>
-                                        )}
+                                        <View style={styles.chartTodayLabelBox}>
+                                            {isToday && (
+                                                <Text style={styles.chartTodayLabel}>{dayFull}</Text>
+                                            )}
+                                        </View>
                                         <View style={styles.chartTrack}>
-                                            <LinearGradient
-                                                colors={isToday ? ['#2D3FE0', '#4A6CF7'] : ['#C7D2FE', '#A5B4FC']}
-                                                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                                                style={[styles.chartBar, { height: barH }]}
-                                            />
+                                            <View style={[
+                                                styles.chartBar,
+                                                { height: barH },
+                                                isToday ? styles.chartBarToday : styles.chartBarIdle,
+                                            ]} />
                                         </View>
                                         <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>
                                             {day.label}
@@ -516,56 +501,57 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden',
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
         shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
-        gap: 0,
     },
-    chartSummaryRow: {
-        flexDirection: 'column', gap: 6,
-        paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16,
-    },
-    chartSummaryTop: {
-        flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'space-between',
+    chartHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+        paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20,
     },
     chartEyebrow: {
         color: '#8F95B2', fontSize: 10, fontWeight: '700',
-        textTransform: 'uppercase', letterSpacing: 0.8,
+        textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4,
     },
-    chartSummaryLine: {
-        color: '#8F95B2', fontSize: 14, fontWeight: '500',
+    chartNumRow: {
+        flexDirection: 'row', alignItems: 'flex-end', gap: 6,
     },
-    chartSummaryNum: {
-        color: '#1A1F36', fontSize: 20, fontWeight: '800',
+    chartBigNum: {
+        color: '#2D3FE0', fontSize: 36, fontWeight: '800',
     },
-    chartTrendPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+    chartWeekLabel: {
+        color: '#8F95B2', fontSize: 12, fontWeight: '500', paddingBottom: 6,
     },
-    chartTrendText: {
-        fontSize: 11, fontWeight: '700',
+    chartIconBox: {
+        backgroundColor: '#E8EDFF', borderRadius: 12, padding: 10,
+        alignItems: 'center', justifyContent: 'center',
     },
     chartBars: {
-        flexDirection: 'row', alignItems: 'flex-end',
-        justifyContent: 'space-between',
-        height: 180,
-        paddingHorizontal: 20, paddingBottom: 16, paddingTop: 16,
+        flexDirection: 'row', gap: 8,
+        paddingHorizontal: 16, paddingBottom: 20,
     },
     chartBarCol: {
-        flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 5,
+        flex: 1, alignItems: 'center', gap: 4,
+    },
+    chartTodayLabelBox: {
+        height: 18, justifyContent: 'center', alignItems: 'center',
+    },
+    chartTodayLabel: {
+        color: '#2D3FE0', fontSize: 10, fontWeight: '700',
     },
     chartTrack: {
-        width: 28, height: 120, justifyContent: 'flex-end',
+        height: 108, width: '100%', justifyContent: 'flex-end',
     },
     chartBar: {
-        width: 28, borderRadius: 6,
+        width: '100%', borderTopLeftRadius: 6, borderTopRightRadius: 6,
     },
-    chartCount: {
-        color: '#1A1F36', fontSize: 11, fontWeight: '700',
+    chartBarIdle: {
+        backgroundColor: '#DBEAFE',
     },
-    chartCountToday: {
-        color: '#2D3FE0',
+    chartBarToday: {
+        backgroundColor: '#2D3FE0',
+        shadowColor: '#2D3FE0', shadowOpacity: 0.30, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 }, elevation: 4,
     },
     chartLabel: {
-        color: '#8F95B2', fontSize: 11, fontWeight: '600', marginTop: 4,
+        color: '#8F95B2', fontSize: 10, fontWeight: '700',
     },
     chartLabelToday: {
         color: '#2D3FE0', fontWeight: '800',
