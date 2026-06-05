@@ -1,261 +1,556 @@
-import React, { useEffect } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Alert, Animated, RefreshControl, ScrollView, StyleSheet,
+    Text, TouchableOpacity, View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from '../../src/context/AppContext';
 
-function formatNotificationDate(value) {
-  if (!value) {
-    return 'Ahora mismo';
-  }
+function formatRelativeDate(value) {
+    if (!value) return 'Ahora';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    const diff = (Date.now() - parsed.getTime()) / 1000;
+    if (diff < 60) return 'Ahora';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+    return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(parsed);
+}
 
-  const parsed = new Date(value);
+function getNotificationType(notification) {
+    if (notification.taskId) return { label: 'Tarea', bg: '#E8EDFF', text: '#2D3FE0' };
+    if (notification.incidentId) return { label: 'Incidencia', bg: '#E8F8FB', text: '#06B6D4' };
+    return { label: 'Sistema', bg: '#F1F3FF', text: '#8F95B2' };
+}
 
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Fecha no disponible';
-  }
+function SkeletonCard({ shimmer }) {
+    const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] });
+    return (
+        <View style={styles.card}>
+            <View style={[styles.unreadStripe, { backgroundColor: '#E8EDFF' }]} />
+            <View style={styles.cardInner}>
+                <View style={styles.cardTopRow}>
+                    <Animated.View style={[styles.skeletonPill, { width: 72, opacity }]} />
+                    <Animated.View style={[styles.skeletonLine, { width: 44, height: 12, opacity }]} />
+                </View>
+                <Animated.View style={[styles.skeletonLine, { width: '78%', height: 15, opacity }]} />
+                <Animated.View style={[styles.skeletonLine, { width: '100%', height: 12, opacity }]} />
+                <Animated.View style={[styles.skeletonLine, { width: '55%', height: 12, opacity }]} />
+                <View style={[styles.cardBottomRow, { marginTop: 4 }]}>
+                    <Animated.View style={[styles.skeletonPill, { width: 96, opacity }]} />
+                    <Animated.View style={[styles.skeletonPill, { width: 58, opacity }]} />
+                </View>
+            </View>
+        </View>
+    );
+}
 
-  return new Intl.DateTimeFormat('es-EC', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsed);
+function FilterTab({ label, active, onPress }) {
+    if (active) {
+        return (
+            <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.filterTabWrapper}>
+                <LinearGradient
+                    colors={['#2D3FE0', '#4A6CF7']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.filterTabActive}
+                >
+                    <Text style={styles.filterTabActiveText}>{label}</Text>
+                </LinearGradient>
+            </TouchableOpacity>
+        );
+    }
+    return (
+        <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.filterTabWrapper, styles.filterTabInactive]}>
+            <Text style={styles.filterTabInactiveText}>{label}</Text>
+        </TouchableOpacity>
+    );
 }
 
 export default function NotificationsScreen() {
-  const router = useRouter();
-  const {
-    notifications,
-    notificationsLoaded,
-    refreshNotifications,
-    markNotificationRead,
-    tasks,
-    incidents,
-    refreshTasks,
-    refreshIncidents,
-    isLoading,
-  } = useAppContext();
+    const router = useRouter();
+    const {
+        notifications,
+        notificationsLoaded,
+        refreshNotifications,
+        markNotificationRead,
+        tasks,
+        incidents,
+        refreshTasks,
+        refreshIncidents,
+        isLoading,
+    } = useAppContext();
 
-  useEffect(() => {
-    if (!notificationsLoaded) {
-      refreshNotifications().catch((error) => {
-        console.error('Error al cargar notificaciones:', error);
-        Alert.alert('Error', error?.message || 'No se pudieron cargar las notificaciones.');
-      });
-    }
-  }, [notificationsLoaded, refreshNotifications]);
+    const [filter, setFilter] = useState('all');
+    const shimmer = useRef(new Animated.Value(0)).current;
 
-  const handleOpen = async (notification) => {
-    try {
-      if (!notification.isRead) {
-        await markNotificationRead(notification.id);
-      }
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(shimmer, { toValue: 1, duration: 750, useNativeDriver: true }),
+                Animated.timing(shimmer, { toValue: 0, duration: 750, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [shimmer]);
 
-      if (notification.taskId) {
-        const hasTaskLoaded = tasks.some(
-          (item) => String(item.id) === String(notification.taskId)
-        );
-
-        if (!hasTaskLoaded) {
-          await refreshTasks();
+    useEffect(() => {
+        if (!notificationsLoaded) {
+            refreshNotifications().catch((err) => {
+                Alert.alert('Error', err?.message || 'No se pudieron cargar las notificaciones.');
+            });
         }
-      }
+    }, [notificationsLoaded, refreshNotifications]);
 
-      if (notification.incidentId) {
-        const hasIncidentLoaded = incidents.some(
-          (item) => String(item.id) === String(notification.incidentId)
-        );
-
-        if (!hasIncidentLoaded) {
-          await refreshIncidents();
+    const handleOpen = async (notification) => {
+        try {
+            if (!notification.isRead) await markNotificationRead(notification.id);
+            if (notification.taskId) {
+                const loaded = tasks.some((t) => String(t.id) === String(notification.taskId));
+                if (!loaded) await refreshTasks();
+                router.push({ pathname: '/IncidentDetail', params: { id: String(notification.taskId), type: 'task' } });
+                return;
+            }
+            if (notification.incidentId) {
+                const loaded = incidents.some((i) => String(i.id) === String(notification.incidentId));
+                if (!loaded) await refreshIncidents();
+                router.push({ pathname: '/IncidentDetail', params: { id: String(notification.incidentId), type: 'incident' } });
+            }
+        } catch (err) {
+            console.error('Error al abrir notificación:', err);
         }
-      }
-    } catch (error) {
-      console.error('Error al preparar la notificacion:', error);
-    }
+    };
 
-    if (notification.taskId) {
-      router.push({
-        pathname: '/IncidentDetail',
-        params: { id: String(notification.taskId), type: 'task' },
-      });
+    const unreadCount = notifications.filter((n) => !n.isRead).length;
+    const visible = filter === 'unread'
+        ? notifications.filter((n) => !n.isRead)
+        : notifications;
 
-      return;
-    }
+    return (
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+                <RefreshControl
+                    refreshing={isLoading && notificationsLoaded}
+                    onRefresh={refreshNotifications}
+                    tintColor="#4A6CF7"
+                    colors={['#4A6CF7']}
+                />
+            }
+        >
+            <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
 
-    if (notification.incidentId) {
-      router.push({
-        pathname: '/IncidentDetail',
-        params: { id: String(notification.incidentId), type: 'incident' },
-      });
-    }
-  };
+            {/* ── Hero ── */}
+            <LinearGradient
+                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.hero}
+            >
+                <View style={styles.decCircle1} />
+                <View style={styles.decCircle2} />
 
-  return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={isLoading && notificationsLoaded} onRefresh={refreshNotifications} />}
-    >
-      <Stack.Screen options={{ title: 'Notificaciones', headerShown: false }} />
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.backBtn}
+                    onPress={() => router.back()}
+                >
+                    <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+                </TouchableOpacity>
 
-      <View style={styles.header}>
-        <Text style={styles.eyebrow}>Bandeja operativa</Text>
-        <Text style={styles.title}>Notificaciones</Text>
-        <Text style={styles.subtitle}>
-          Aquí verás cuando un supervisor apruebe una incidencia y te asigne una tarea.
-        </Text>
-      </View>
+                <View style={styles.heroContent}>
+                    <View>
+                        <Text style={styles.heroEyebrow}>Bandeja operativa</Text>
+                        <Text style={styles.heroTitle}>Notificaciones</Text>
+                    </View>
+                    {unreadCount > 0 && (
+                        <View style={styles.heroBadge}>
+                            <Text style={styles.heroBadgeNumber}>{unreadCount}</Text>
+                            <Text style={styles.heroBadgeLabel}>sin leer</Text>
+                        </View>
+                    )}
+                </View>
+            </LinearGradient>
 
-      {notifications.length > 0 ? (
-        notifications.map((notification) => (
-          <TouchableOpacity
-            key={String(notification.id)}
-            style={[styles.card, !notification.isRead && styles.cardUnread]}
-            onPress={() => handleOpen(notification)}
-          >
-            <View style={styles.cardIcon}>
-              <MaterialCommunityIcons
-                name={notification.isRead ? 'bell-check-outline' : 'bell-ring-outline'}
-                size={24}
-                color={notification.isRead ? '#44635a' : '#0f2f29'}
-              />
+            {/* ── Filtros ── */}
+            <View style={styles.filterRow}>
+                <FilterTab label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
+                <FilterTab
+                    label={`No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+                    active={filter === 'unread'}
+                    onPress={() => setFilter('unread')}
+                />
             </View>
 
-            <View style={styles.cardBody}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{notification.title}</Text>
-                {!notification.isRead ? <View style={styles.unreadDot} /> : null}
-              </View>
-              <Text style={styles.cardText}>{notification.body}</Text>
-              <Text style={styles.cardMeta}>
-                {notification.location} · Prioridad {notification.priority}
-              </Text>
-              <Text style={styles.cardDate}>{formatNotificationDate(notification.createdAt)}</Text>
-            </View>
-          </TouchableOpacity>
-        ))
-      ) : (
-        <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>Sin notificaciones</Text>
-          <Text style={styles.emptyText}>
-            Cuando el supervisor apruebe una incidencia asignada a ti, aparecerá aquí.
-          </Text>
-        </View>
-      )}
-    </ScrollView>
-  );
+            {/* ── Lista ── */}
+            {!notificationsLoaded ? (
+                [1, 2, 3, 4].map((i) => <SkeletonCard key={i} shimmer={shimmer} />)
+            ) : visible.length > 0 ? (
+                visible.map((notification) => {
+                    const type = getNotificationType(notification);
+                    const isNavigable = !!(notification.taskId || notification.incidentId);
+
+                    return (
+                        <TouchableOpacity
+                            key={String(notification.id)}
+                            onPress={() => handleOpen(notification)}
+                            activeOpacity={0.85}
+                            style={styles.card}
+                        >
+                            {!notification.isRead && <View style={styles.unreadStripe} />}
+
+                            <View style={styles.cardInner}>
+                                <View style={styles.cardTopRow}>
+                                    <View style={[styles.typeBadge, { backgroundColor: type.bg }]}>
+                                        <Text style={[styles.typeBadgeText, { color: type.text }]}>
+                                            {type.label}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.timestamp}>
+                                        {formatRelativeDate(notification.createdAt)}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.cardTitle}>{notification.title}</Text>
+
+                                <Text style={styles.cardBody} numberOfLines={2}>
+                                    {notification.body}
+                                </Text>
+
+                                <View style={styles.cardBottomRow}>
+                                    {notification.location ? (
+                                        <View style={styles.locationChip}>
+                                            <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
+                                            <Text style={styles.locationText} numberOfLines={1}>
+                                                {notification.location}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <View />
+                                    )}
+
+                                    {isNavigable && (
+                                        <TouchableOpacity
+                                            onPress={() => handleOpen(notification)}
+                                            activeOpacity={0.85}
+                                            style={styles.actionBtn}
+                                        >
+                                            <Text style={styles.actionBtnText}>Ver</Text>
+                                            <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    );
+                })
+            ) : (
+                <View style={styles.emptyWrapper}>
+                    <LinearGradient
+                        colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.emptyDecoCard}
+                    >
+                        <View style={styles.emptyDecoCircle} />
+                        <MaterialCommunityIcons name="bell-sleep-outline" size={36} color="rgba(255,255,255,0.9)" />
+                    </LinearGradient>
+
+                    <Text style={styles.emptyTitle}>
+                        {filter === 'unread' ? 'Todo al día' : 'Sin notificaciones'}
+                    </Text>
+                    <Text style={styles.emptyText}>
+                        {filter === 'unread'
+                            ? 'No tienes notificaciones pendientes de leer.'
+                            : 'Cuando el supervisor te asigne una tarea, aparecerá aquí.'}
+                    </Text>
+
+                    {filter === 'unread' && (
+                        <TouchableOpacity onPress={() => setFilter('all')} activeOpacity={0.85} style={styles.emptyAction}>
+                            <Text style={styles.emptyActionText}>Ver todas</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
+        </ScrollView>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f6f4',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 36,
-  },
-  header: {
-    marginTop: 54,
-    marginBottom: 18,
-  },
-  eyebrow: {
-    color: '#6b7d78',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.1,
-    marginBottom: 8,
-  },
-  title: {
-    color: '#16211e',
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#64746f',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  card: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#d9e5e0',
-    marginBottom: 12,
-  },
-  cardUnread: {
-    borderColor: '#b9d3cb',
-    backgroundColor: '#f8fcfa',
-  },
-  cardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e4efeb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  cardBody: {
-    flex: 1,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-    gap: 10,
-  },
-  cardTitle: {
-    flex: 1,
-    color: '#16211e',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  unreadDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#1d8f60',
-  },
-  cardText: {
-    color: '#40514c',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
-  },
-  cardMeta: {
-    color: '#0f2f29',
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  cardDate: {
-    color: '#6b7d78',
-    fontSize: 12,
-  },
-  emptyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#d9e5e0',
-  },
-  emptyTitle: {
-    color: '#16211e',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  emptyText: {
-    color: '#687974',
-    fontSize: 14,
-    lineHeight: 21,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#EEF2FF',
+    },
+    content: {
+        paddingBottom: 40,
+    },
+
+    backBtn: {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 16,
+    },
+
+    // Hero
+    hero: {
+        paddingTop: 64,
+        paddingBottom: 28,
+        paddingHorizontal: 24,
+        overflow: 'hidden',
+        position: 'relative',
+    },
+    decCircle1: {
+        position: 'absolute',
+        top: -40,
+        right: -40,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    decCircle2: {
+        position: 'absolute',
+        bottom: -30,
+        left: -20,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    heroContent: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+    },
+    heroEyebrow: {
+        color: 'rgba(255,255,255,0.65)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.1,
+        textTransform: 'uppercase',
+        marginBottom: 6,
+    },
+    heroTitle: {
+        color: '#ffffff',
+        fontSize: 28,
+        fontWeight: '800',
+    },
+    heroBadge: {
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        alignItems: 'center',
+    },
+    heroBadgeNumber: {
+        color: '#ffffff',
+        fontSize: 22,
+        fontWeight: '800',
+        lineHeight: 26,
+    },
+    heroBadgeLabel: {
+        color: 'rgba(255,255,255,0.70)',
+        fontSize: 11,
+        fontWeight: '600',
+    },
+
+    // Filtros
+    filterRow: {
+        flexDirection: 'row',
+        gap: 10,
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 16,
+    },
+    filterTabWrapper: {
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    filterTabActive: {
+        paddingHorizontal: 18,
+        paddingVertical: 9,
+        borderRadius: 999,
+    },
+    filterTabActiveText: {
+        color: '#ffffff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    filterTabInactive: {
+        backgroundColor: '#ffffff',
+        paddingHorizontal: 18,
+        paddingVertical: 9,
+        shadowColor: '#4A6CF7',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+    },
+    filterTabInactiveText: {
+        color: '#8F95B2',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+
+    // Card
+    card: {
+        flexDirection: 'row',
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        marginHorizontal: 20,
+        marginBottom: 12,
+        overflow: 'hidden',
+        shadowColor: '#4A6CF7',
+        shadowOpacity: 0.09,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+    },
+    unreadStripe: {
+        width: 4,
+        backgroundColor: '#4A6CF7',
+        borderTopLeftRadius: 20,
+        borderBottomLeftRadius: 20,
+    },
+    cardInner: {
+        flex: 1,
+        padding: 16,
+        gap: 6,
+    },
+    cardTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    typeBadge: {
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+    },
+    typeBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    timestamp: {
+        color: '#8F95B2',
+        fontSize: 12,
+        fontWeight: '500',
+    },
+    cardTitle: {
+        color: '#1A1F36',
+        fontSize: 15,
+        fontWeight: '800',
+        lineHeight: 20,
+    },
+    cardBody: {
+        color: '#8F95B2',
+        fontSize: 13,
+        lineHeight: 19,
+    },
+    cardBottomRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    locationChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#F1F3FF',
+        borderRadius: 999,
+        paddingHorizontal: 9,
+        paddingVertical: 4,
+        maxWidth: '60%',
+    },
+    locationText: {
+        color: '#8F95B2',
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    actionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#E8EDFF',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
+    },
+    actionBtnText: {
+        color: '#4A6CF7',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+
+    // Empty
+    emptyWrapper: {
+        alignItems: 'center',
+        paddingHorizontal: 32,
+        paddingTop: 32,
+        gap: 16,
+    },
+    emptyDecoCard: {
+        width: 100,
+        height: 100,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        marginBottom: 8,
+        shadowColor: '#2D3FE0',
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 6,
+    },
+    emptyDecoCircle: {
+        position: 'absolute',
+        top: -20,
+        right: -20,
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    emptyTitle: {
+        color: '#1A1F36',
+        fontSize: 20,
+        fontWeight: '800',
+        textAlign: 'center',
+    },
+    emptyText: {
+        color: '#8F95B2',
+        fontSize: 14,
+        lineHeight: 21,
+        textAlign: 'center',
+    },
+    emptyAction: {
+        backgroundColor: '#E8EDFF',
+        borderRadius: 999,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        marginTop: 4,
+    },
+    emptyActionText: {
+        color: '#4A6CF7',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+
+    // Skeleton
+    skeletonLine: {
+        height: 13,
+        borderRadius: 6,
+        backgroundColor: '#E8EDFF',
+    },
+    skeletonPill: {
+        height: 24,
+        borderRadius: 999,
+        backgroundColor: '#E8EDFF',
+    },
 });

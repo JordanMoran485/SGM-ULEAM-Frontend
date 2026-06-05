@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    Alert, Image, ScrollView, StyleSheet,
+    Text, TouchableOpacity, View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,44 +18,40 @@ export default function Profile() {
     const displayName = [user?.name, user?.lastname].filter(Boolean).join(' ') || user?.name || 'Usuario ULEAM';
     const userEmail = user?.email || 'Sin correo registrado';
     const primaryRole = Array.isArray(user?.roles) ? user.roles[0]?.name : null;
-    const userRole =
-        ({
-            super_admin: 'Superadministrador',
-            supervisor: 'Supervisor',
-            conserje: 'Conserje',
-        }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
-    const accountStatus = user?.active_state === false ? 'Cuenta desactivada' : 'Cuenta activa';
-    const accountStatusTone = user?.active_state === false ? styles.statusAlert : styles.statusGood;
-    const facultyLabel = user?.facultad?.display_name || user?.facultad?.name || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
-    const remoteProfileImage = useMemo(() => {
-        if (!user?.profile_photo_url) {
-            return null;
-        }
+    const userRole = ({
+        super_admin: 'Superadministrador',
+        supervisor: 'Supervisor',
+        conserje: 'Conserje',
+    }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
+    const isActive = user?.active_state !== false;
+    const facultyLabel = user?.facultad?.display_name || user?.facultad?.name
+        || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
 
-        const separator = user.profile_photo_url.includes('?') ? '&' : '?';
-        return `${user.profile_photo_url}${separator}v=${avatarRefreshKey}`;
+    const remoteProfileImage = useMemo(() => {
+        if (!user?.profile_photo_url) return null;
+        const sep = user.profile_photo_url.includes('?') ? '&' : '?';
+        return `${user.profile_photo_url}${sep}v=${avatarRefreshKey}`;
     }, [avatarRefreshKey, user?.profile_photo_url]);
+
+    const avatarUri = localProfilePreview || remoteProfileImage;
 
     const pickFromLibrary = async () => {
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
             if (!permission.granted) {
                 Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos para cambiar el avatar.');
                 return;
             }
-
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
             });
-
             if (!result.canceled && result.assets?.[0]?.uri) {
                 setLocalProfilePreview(result.assets[0].uri);
                 await updateProfileImage(result.assets[0]);
-                setAvatarRefreshKey((current) => current + 1);
+                setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
             Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
@@ -61,23 +61,20 @@ export default function Profile() {
     const takePhoto = async () => {
         try {
             const permission = await ImagePicker.requestCameraPermissionsAsync();
-
             if (!permission.granted) {
-                Alert.alert('Permiso requerido', 'Debes permitir el acceso a la camara para tomar la foto.');
+                Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara para tomar la foto.');
                 return;
             }
-
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
             });
-
             if (!result.canceled && result.assets?.[0]?.uri) {
                 setLocalProfilePreview(result.assets[0].uri);
                 await updateProfileImage(result.assets[0]);
-                setAvatarRefreshKey((current) => current + 1);
+                setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
             Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
@@ -85,9 +82,9 @@ export default function Profile() {
     };
 
     const handlePickProfileImage = () => {
-        Alert.alert('Foto de perfil', 'Elige una opcion', [
+        Alert.alert('Foto de perfil', 'Elige una opción', [
             { text: 'Tomar foto', onPress: takePhoto },
-            { text: 'Galeria', onPress: pickFromLibrary },
+            { text: 'Galería', onPress: pickFromLibrary },
             { text: 'Cancelar', style: 'cancel' },
         ]);
     };
@@ -98,110 +95,129 @@ export default function Profile() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Stack.Screen
-                options={{
-                    title: 'Mi Perfil',
-                    headerLargeTitle: true,
-                    headerShadowVisible: false,
-                    headerStyle: { backgroundColor: '#f3f6f4' },
-                }}
-            />
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+        >
+            <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
 
-            <View style={styles.header}>
-                <View style={styles.headerText}>
-                    <Text style={styles.eyebrow}>Cuenta y seguimiento</Text>
-                    <Text style={styles.title}>{displayName}</Text>
-                    <Text style={styles.subtitle}>
-                        Revisa tu identidad dentro del sistema, tu carga actual y el estado de tu cuenta.
+            {/* ── Hero card ── */}
+            <LinearGradient
+                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+            >
+                <View style={styles.decCircle1} />
+                <View style={styles.decCircle2} />
+
+                <TouchableOpacity onPress={handlePickProfileImage} activeOpacity={0.85} style={styles.avatarWrapper}>
+                    <View style={styles.avatarRing}>
+                        {avatarUri ? (
+                            <Image
+                                key={avatarUri}
+                                source={{ uri: avatarUri }}
+                                style={styles.avatarImage}
+                                onError={() => localProfilePreview && setLocalProfilePreview(null)}
+                            />
+                        ) : (
+                            <MaterialCommunityIcons name="account" size={52} color="#4A6CF7" />
+                        )}
+                    </View>
+                    <View style={styles.avatarEditBadge}>
+                        <MaterialCommunityIcons name="camera" size={13} color="#4A6CF7" />
+                    </View>
+                </TouchableOpacity>
+
+                <Text style={styles.heroName}>{displayName}</Text>
+
+                <View style={styles.heroBadge}>
+                    <Text style={styles.heroBadgeText}>{userRole}</Text>
+                </View>
+
+                <View style={styles.heroStatusRow}>
+                    <View style={[styles.statusDot, isActive ? styles.dotGreen : styles.dotRed]} />
+                    <Text style={styles.heroStatusText}>
+                        {isActive ? 'Cuenta activa' : 'Cuenta desactivada'}
                     </Text>
                 </View>
-            </View>
+            </LinearGradient>
 
-            <TouchableOpacity style={styles.avatarSection} onPress={handlePickProfileImage} activeOpacity={0.9}>
-                <View style={styles.avatarEditorFrame}>
-                    {localProfilePreview || remoteProfileImage ? (
-                        <Image
-                            key={localProfilePreview || remoteProfileImage}
-                            source={{ uri: localProfilePreview || remoteProfileImage }}
-                            style={styles.avatarEditorImage}
-                            onError={() => {
-                                if (localProfilePreview && remoteProfileImage) {
-                                    setLocalProfilePreview(null);
-                                    return;
-                                }
+            {/* ── Mi información ── */}
+            <Text style={styles.sectionLabel}>Mi información</Text>
 
-                                Alert.alert('No se pudo mostrar la foto', 'La imagen se guardó, pero no se pudo cargar en la app.');
-                            }}
-                        />
-                    ) : (
-                        <View style={styles.avatarFallback}>
-                            <MaterialCommunityIcons name="account-circle" size={88} color="#c6d6d0" />
-                        </View>
-                    )}
-
-                    <View style={styles.avatarEditBadge}>
-                        <MaterialCommunityIcons name="pencil" size={16} color="#10342d" />
+            <View style={styles.card}>
+                <View style={styles.listRow}>
+                    <View style={styles.iconBox}>
+                        <MaterialCommunityIcons name="email-outline" size={18} color="#4A6CF7" />
+                    </View>
+                    <View style={styles.listContent}>
+                        <Text style={styles.listLabel}>Correo electrónico</Text>
+                        <Text style={styles.listValue}>{userEmail}</Text>
                     </View>
                 </View>
 
-                <Text style={styles.avatarCardTitle}>Foto de perfil</Text>
-                <Text style={styles.avatarCardText}>Toca para tomar una foto o elegir una imagen.</Text>
+                <View style={styles.divider} />
+
+                <View style={styles.listRow}>
+                    <View style={styles.iconBox}>
+                        <MaterialCommunityIcons name="school-outline" size={18} color="#4A6CF7" />
+                    </View>
+                    <View style={styles.listContent}>
+                        <Text style={styles.listLabel}>Facultad</Text>
+                        <Text style={styles.listValue}>{facultyLabel}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.listRow}>
+                    <View style={[styles.iconBox, isActive ? styles.iconBoxGreen : styles.iconBoxRed]}>
+                        <MaterialCommunityIcons
+                            name={isActive ? 'shield-check-outline' : 'shield-off-outline'}
+                            size={18}
+                            color={isActive ? '#22C55E' : '#F43F5E'}
+                        />
+                    </View>
+                    <View style={styles.listContent}>
+                        <Text style={styles.listLabel}>Estado de cuenta</Text>
+                        <View style={[styles.statusBadge, isActive ? styles.badgeGreen : styles.badgeRed]}>
+                            <Text style={[styles.statusBadgeText, isActive ? styles.badgeTextGreen : styles.badgeTextRed]}>
+                                {isActive ? 'Activa' : 'Desactivada'}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+
+            {/* ── Ajustes ── */}
+            <Text style={styles.sectionLabel}>Ajustes</Text>
+
+            <TouchableOpacity style={styles.card} onPress={handlePickProfileImage} activeOpacity={0.85}>
+                <View style={styles.listRow}>
+                    <View style={[styles.iconBox, styles.iconBoxCyan]}>
+                        <MaterialCommunityIcons name="camera-outline" size={18} color="#22D3EE" />
+                    </View>
+                    <View style={styles.listContent}>
+                        <Text style={styles.listLabel}>Foto de perfil</Text>
+                        <Text style={styles.listValue}>Toca para cambiar tu foto</Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color="#8F95B2" />
+                </View>
             </TouchableOpacity>
 
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Resumen de cuenta</Text>
-            </View>
-
-            <View style={styles.infoCard}>
-                <View style={styles.infoRow}>
-                    <View style={styles.infoBadge}>
-                        <Text style={styles.infoBadgeText}>Correo</Text>
-                    </View>
-                    <Text style={styles.infoValue}>{userEmail}</Text>
-                </View>
-
-                <View style={styles.infoDivider} />
-
-                <View style={styles.infoRow}>
-                    <View style={styles.infoBadge}>
-                        <Text style={styles.infoBadgeText}>Rol</Text>
-                    </View>
-                    <Text style={styles.infoValue}>{userRole}</Text>
-                </View>
-
-                <View style={styles.infoDivider} />
-
-                <View style={styles.infoRow}>
-                    <View style={styles.infoBadge}>
-                        <Text style={styles.infoBadgeText}>Facultad</Text>
-                    </View>
-                    <Text style={styles.infoValue}>{facultyLabel}</Text>
-                </View>
-
-                <View style={styles.infoDivider} />
-
-                <View style={styles.infoRow}>
-                    <View style={[styles.statusPill, accountStatusTone]}>
-                        <Text style={[styles.statusPillText, user?.active_state === false ? styles.statusPillTextAlert : styles.statusPillTextGood]}>
-                            {accountStatus}
-                        </Text>
-                    </View>
-                    <Text style={styles.infoHint}>Estado actual de acceso en la plataforma</Text>
-                </View>
-            </View>
-
-            <TouchableOpacity style={styles.logoutCard} onPress={handleLogout} activeOpacity={0.9}>
-                <View style={styles.logoutContent}>
-                    <View style={styles.logoutIconWrap}>
-                        <MaterialCommunityIcons name="logout-variant" size={20} color="#b93832" />
-                    </View>
-                    <Text style={styles.logoutTitle}>Cerrar sesion</Text>
-                </View>
-                <View style={styles.logoutCta}>
-                    <Text style={styles.logoutLink}>Salir</Text>
-                    <MaterialCommunityIcons name="chevron-right" size={16} color="#ffffff" />
-                </View>
+            {/* ── Cerrar sesión ── */}
+            <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutWrapper}>
+                <LinearGradient
+                    colors={['#F43F5E', '#FB7185']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.logoutBtn}
+                >
+                    <MaterialCommunityIcons name="logout-variant" size={18} color="#fff" />
+                    <Text style={styles.logoutBtnText}>Cerrar sesión</Text>
+                </LinearGradient>
             </TouchableOpacity>
 
         </ScrollView>
@@ -211,225 +227,221 @@ export default function Profile() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f3f6f4',
+        backgroundColor: '#EEF2FF',
     },
     content: {
         padding: 20,
-        paddingBottom: 38,
+        paddingTop: 64,
+        paddingBottom: 40,
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
-    },
-    headerText: {
-        flex: 1,
-    },
-    eyebrow: {
-        color: '#6b7d78',
-        fontSize: 12,
-        fontWeight: '700',
-        letterSpacing: 1.1,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-    },
-    title: {
-        color: '#16211e',
-        fontSize: 30,
-        fontWeight: '800',
-        marginBottom: 8,
-    },
-    subtitle: {
-        color: '#64746f',
-        fontSize: 15,
-        lineHeight: 22,
-    },
-    avatarSection: {
-        paddingVertical: 8,
+
+    // Hero
+    heroCard: {
+        borderRadius: 24,
+        padding: 28,
         alignItems: 'center',
-        marginBottom: 18,
-    },
-    avatarEditorFrame: {
-        width: 124,
-        height: 124,
-        borderRadius: 62,
-        backgroundColor: '#edf4f1',
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 14,
+        marginBottom: 28,
+        overflow: 'hidden',
         position: 'relative',
-        overflow: 'visible',
+        shadowColor: '#2D3FE0',
+        shadowOpacity: 0.28,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 8,
     },
-    avatarEditorImage: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 62,
+    decCircle1: {
+        position: 'absolute',
+        top: -32,
+        right: -32,
+        width: 130,
+        height: 130,
+        borderRadius: 65,
+        backgroundColor: 'rgba(255,255,255,0.10)',
     },
-    avatarFallback: {
-        width: '100%',
-        height: '100%',
-        borderRadius: 62,
+    decCircle2: {
+        position: 'absolute',
+        bottom: -24,
+        right: -16,
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    avatarWrapper: {
+        position: 'relative',
+        marginBottom: 16,
+    },
+    avatarRing: {
+        width: 104,
+        height: 104,
+        borderRadius: 52,
+        backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#edf4f1',
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 4,
+    },
+    avatarImage: {
+        width: 104,
+        height: 104,
+        borderRadius: 52,
     },
     avatarEditBadge: {
         position: 'absolute',
-        right: 2,
         bottom: 2,
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: '#f3f6f4',
+        right: 2,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-    },
-    avatarCardTitle: {
-        color: '#16211e',
-        fontSize: 18,
-        fontWeight: '800',
-        marginBottom: 6,
-    },
-    avatarCardText: {
-        color: '#64746f',
-        fontSize: 14,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    sectionHeader: {
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        color: '#16211e',
-        fontSize: 19,
-        fontWeight: '800',
-    },
-    infoCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 18,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 24,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 12,
-    },
-    infoBadge: {
-        backgroundColor: '#edf4f1',
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-    },
-    infoBadgeText: {
-        color: '#17342d',
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    infoValue: {
-        flex: 1,
-        color: '#16211e',
-        fontSize: 14,
-        fontWeight: '700',
-        textAlign: 'right',
-    },
-    infoDivider: {
-        height: 1,
-        backgroundColor: '#edf2ef',
-        marginVertical: 14,
-    },
-    statusPill: {
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 7,
-    },
-    statusGood: {
-        backgroundColor: '#e5f4ec',
-    },
-    statusAlert: {
-        backgroundColor: '#fdeceb',
-    },
-    statusPillText: {
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    statusPillTextGood: {
-        color: '#1b8659',
-    },
-    statusPillTextAlert: {
-        color: '#b54745',
-    },
-    infoHint: {
-        flex: 1,
-        color: '#687974',
-        fontSize: 13,
-        lineHeight: 19,
-        textAlign: 'right',
-    },
-    logoutCard: {
-        backgroundColor: '#fff4f2',
-        borderRadius: 24,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderWidth: 1,
-        borderColor: '#efcfca',
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 12,
-        marginTop: 8,
-        shadowColor: '#d06d65',
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
+        shadowColor: '#2D3FE0',
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
-    logoutContent: {
+    heroName: {
+        color: '#ffffff',
+        fontSize: 24,
+        fontWeight: '800',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    heroBadge: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+        marginBottom: 12,
+    },
+    heroBadgeText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    heroStatusRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        flex: 1,
+        gap: 6,
     },
-    logoutIconWrap: {
-        width: 42,
-        height: 42,
-        borderRadius: 14,
-        backgroundColor: '#ffe2de',
+    statusDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+    },
+    dotGreen: { backgroundColor: '#22C55E' },
+    dotRed:   { backgroundColor: '#F43F5E' },
+    heroStatusText: {
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+
+    // Section
+    sectionLabel: {
+        color: '#8F95B2',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.1,
+        textTransform: 'uppercase',
+        marginBottom: 10,
+        marginLeft: 4,
+    },
+
+    // Card
+    card: {
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        paddingVertical: 6,
+        marginBottom: 20,
+        shadowColor: '#4A6CF7',
+        shadowOpacity: 0.10,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+    },
+
+    // List row
+    listRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 14,
+    },
+    iconBox: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#E8EDFF',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    logoutTitle: {
-        color: '#7f2926',
-        fontSize: 16,
-        fontWeight: '800',
+    iconBoxGreen: { backgroundColor: '#F0FDF4' },
+    iconBoxRed:   { backgroundColor: '#FFF1F2' },
+    iconBoxCyan:  { backgroundColor: '#E8F8FB' },
+    listContent: {
+        flex: 1,
+        gap: 3,
     },
-    logoutCta: {
+    listLabel: {
+        color: '#8F95B2',
+        fontSize: 11,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    listValue: {
+        color: '#1A1F36',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F1F3FF',
+        marginHorizontal: 16,
+    },
+
+    // Status badge
+    statusBadge: {
+        alignSelf: 'flex-start',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        marginTop: 2,
+    },
+    badgeGreen: { backgroundColor: '#F0FDF4' },
+    badgeRed:   { backgroundColor: '#FFF1F2' },
+    statusBadgeText: { fontSize: 12, fontWeight: '700' },
+    badgeTextGreen: { color: '#22C55E' },
+    badgeTextRed:   { color: '#F43F5E' },
+
+    // Logout
+    logoutWrapper: {
+        borderRadius: 20,
+        overflow: 'hidden',
+        marginTop: 4,
+        shadowColor: '#F43F5E',
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 4,
+    },
+    logoutBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#c5453f',
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        justifyContent: 'center',
+        gap: 10,
+        paddingVertical: 16,
     },
-    logoutLink: {
+    logoutBtnText: {
         color: '#ffffff',
-        fontSize: 13,
-        fontWeight: '800',
-    },
-    footerText: {
-        textAlign: 'center',
-        color: '#8a9894',
-        fontSize: 12,
+        fontSize: 15,
         fontWeight: '700',
-        marginTop: 18,
     },
 });

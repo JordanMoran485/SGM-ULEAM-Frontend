@@ -1,685 +1,628 @@
-import React, { useEffect, useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from '../../src/context/AppContext';
 import { API_BASE_URL } from '../../src/services/api';
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+
 function getInitials(name) {
-    if (!name) {
-        return 'U';
-    }
-
-    return name
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join('');
+    if (!name) return 'U';
+    return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('');
 }
 
-function getStatusTone(status) {
-    if (status === 'completed') {
-        return { dot: styles.dotCompleted, badge: styles.badgeCompleted, badgeText: styles.badgeTextCompleted };
-    }
-
-    if (status === 'in_progress') {
-        return { dot: styles.dotProgress, badge: styles.badgeProgress, badgeText: styles.badgeTextProgress };
-    }
-
-    return { dot: styles.dotPending, badge: styles.badgePending, badgeText: styles.badgeTextPending };
+function getGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Buenos días';
+    if (h < 18) return 'Buenas tardes';
+    return 'Buenas noches';
 }
 
-function hasScheduledDate(item) {
-    return Boolean(item?.startAt || item?.dueDate);
+function formatRelative(value) {
+    if (!value) return '';
+    const diff = (Date.now() - new Date(value).getTime()) / 1000;
+    if (diff < 60) return 'Ahora';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+    return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(new Date(value));
 }
 
-function getTaskStart(item) {
-    const raw = item?.startAt || item?.dueDate || null;
-
-    if (!raw) {
-        return null;
-    }
-
-    const parsed = new Date(raw);
-
-    if (Number.isNaN(parsed.getTime())) {
-        return null;
-    }
-
-    if (!item?.startAt && item?.dueDate) {
-        parsed.setHours(6, 0, 0, 0);
-    }
-
-    return parsed;
+function getStatusConfig(status) {
+    if (status === 'completed') return { stripe: '#22C55E' };
+    if (status === 'in_progress') return { stripe: '#4A6CF7' };
+    return { stripe: '#F59E0B' };
 }
 
-function getTodayReference() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-}
+// ─── sub-components ─────────────────────────────────────────────────────────
 
-function isSameDay(left, right) {
+function SegmentedBar({ pending, inProgress, completed }) {
+    const total = (pending + inProgress + completed) || 1;
     return (
-        left.getFullYear() === right.getFullYear() &&
-        left.getMonth() === right.getMonth() &&
-        left.getDate() === right.getDate()
+        <View style={bar.wrapper}>
+            {pending > 0 && (
+                <View style={[bar.segment, { flex: pending / total, backgroundColor: '#F59E0B' }]} />
+            )}
+            {inProgress > 0 && (
+                <View style={[bar.segment, { flex: inProgress / total, backgroundColor: '#4A6CF7' }]} />
+            )}
+            {completed > 0 && (
+                <View style={[bar.segment, { flex: completed / total, backgroundColor: '#22C55E' }]} />
+            )}
+        </View>
     );
 }
 
-function formatAgendaDate(date) {
-    return new Intl.DateTimeFormat('es-EC', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-    }).format(date);
+const bar = StyleSheet.create({
+    wrapper: { flexDirection: 'row', height: 7, borderRadius: 4, overflow: 'hidden', gap: 2, marginTop: 14 },
+    segment: { borderRadius: 4 },
+});
+
+// ─── skeletons ──────────────────────────────────────────────────────────────
+
+function SkeletonChartCard({ shimmer }) {
+    const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] });
+    const heights = [50, 30, 70, 20, 60, 40, 35];
+    return (
+        <View style={skStyles.card}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', height: 90 }}>
+                {heights.map((h, i) => (
+                    <Animated.View key={i} style={{ width: 28, height: h, borderRadius: 6, backgroundColor: '#E8EDFF', opacity }} />
+                ))}
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                {['L','M','X','J','V','S','D'].map((d) => (
+                    <Animated.View key={d} style={{ width: 20, height: 10, borderRadius: 4, backgroundColor: '#E8EDFF', opacity }} />
+                ))}
+            </View>
+        </View>
+    );
 }
 
-function formatAgendaDay(date) {
-    return new Intl.DateTimeFormat('es-EC', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-    }).format(date);
+
+function SkeletonTimelineRow({ shimmer, isLast }) {
+    const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] });
+    return (
+        <View style={{ flexDirection: 'row', minHeight: 56 }}>
+            <View style={{ width: 24, alignItems: 'center', paddingTop: 16 }}>
+                <Animated.View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#E8EDFF', opacity }} />
+                {!isLast && <View style={{ position: 'absolute', top: 26, bottom: 0, width: 1.5, backgroundColor: '#F1F3FF' }} />}
+            </View>
+            <View style={[{ flex: 1, paddingVertical: 14, paddingLeft: 12, gap: 6 }, !isLast && { borderBottomWidth: 1, borderBottomColor: '#F1F3FF' }]}>
+                <Animated.View style={[skStyles.line, { width: '70%', height: 13, opacity }]} />
+                <Animated.View style={[skStyles.line, { width: '40%', height: 11, opacity }]} />
+            </View>
+        </View>
+    );
 }
 
-function formatTaskDate(item) {
-    const start = getTaskStart(item);
+const skStyles = StyleSheet.create({
+    card: {
+        backgroundColor: '#ffffff', borderRadius: 20, padding: 18, gap: 12,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08, shadowRadius: 14,
+        shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    },
+    line: { borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.45)' },
+    pill: { height: 24, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.45)' },
+});
 
-    if (!start) {
-        return 'Sin fecha programada';
-    }
-
-    return formatAgendaDate(start);
-}
+// ─── screen ─────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
     const router = useRouter();
-    const { user, stats, incidents, incidentsLoaded, refreshIncidents, tasks, tasksLoaded, refreshTasks } = useAppContext();
+    const {
+        user, stats, incidents, incidentsLoaded, refreshIncidents,
+        tasks, tasksLoaded, refreshTasks, notifications,
+    } = useAppContext();
 
     useEffect(() => {
         if (!tasksLoaded) {
             console.log('Dashboard API base URL:', API_BASE_URL);
-            refreshTasks().catch((error) => {
-                console.error('Error al cargar dashboard:', error);
-                Alert.alert(
-                    'Error al cargar Dashboard',
-                    error?.message || 'No se pudieron cargar las tareas.'
-                );
+            refreshTasks().catch((err) => {
+                Alert.alert('Error al cargar Dashboard', err?.message || 'No se pudieron cargar las tareas.');
             });
         }
-
         if (!incidentsLoaded) {
-            refreshIncidents().catch((error) => {
-                console.error('Error al cargar incidencias del dashboard:', error);
-            });
+            refreshIncidents().catch((err) => console.error('Error incidencias:', err));
         }
     }, [incidentsLoaded, refreshIncidents, tasksLoaded, refreshTasks]);
 
-    const userName = user?.name || 'Usuario';
-    const todayReference = useMemo(() => getTodayReference(), []);
-    const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+    const shimmer = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(shimmer, { toValue: 1, duration: 750, useNativeDriver: true }),
+                Animated.timing(shimmer, { toValue: 0, duration: 750, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [shimmer]);
 
-    const scheduledItems = useMemo(() => {
-        return tasks
-            .filter((item) => hasScheduledDate(item))
-            .sort((a, b) => {
-                const left = getTaskStart(a)?.getTime() ?? 0;
-                const right = getTaskStart(b)?.getTime() ?? 0;
-                return left - right;
-            });
-    }, [tasks]);
+    const userName    = user?.name || 'Usuario';
+    const unreadCount    = (notifications || []).filter((n) => !n.isRead).length;
 
-    const todayAgenda = useMemo(() => {
-        return scheduledItems.filter((item) => {
-            const start = getTaskStart(item);
-            return start ? isSameDay(start, todayReference) : false;
-        });
-    }, [scheduledItems, todayReference]);
-
-    const nextScheduledItem = useMemo(() => {
-        const now = new Date();
-
-        return scheduledItems.find((item) => {
-            const start = getTaskStart(item);
-            return start && start.getTime() >= now.getTime();
-        }) || null;
-    }, [scheduledItems]);
-
-    const recentPendingItems = useMemo(() => {
-        return [...incidents]
-            .filter((item) => item.status === 'pending' || item.status === 'in_progress')
+    const recentActivity = useMemo(() =>
+        [...incidents]
             .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-            .slice(0, 4);
-    }, [incidents]);
+            .slice(0, 4),
+        [incidents]
+    );
+
+    // Convierte a fecha Ecuador (UTC-5) sin depender del timezone del dispositivo
+    const toEcuadorStr = (d) => {
+        const ec = new Date(d.getTime() - 5 * 60 * 60 * 1000);
+        return `${ec.getUTCFullYear()}-${String(ec.getUTCMonth() + 1).padStart(2, '0')}-${String(ec.getUTCDate()).padStart(2, '0')}`;
+    };
+
+    const ecuadorToday = toEcuadorStr(new Date());
+    const [ey, em, ed] = ecuadorToday.split('-').map(Number);
+    const ecuadorDow   = new Date(Date.UTC(ey, em - 1, ed, 12)).getUTCDay();
+    const todayIndex   = (ecuadorDow + 6) % 7; // 0=Lun … 6=Dom
+
+    const { weeklyData, weekTotal, prevWeekTotal } = useMemo(() => {
+        const labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+        const counts     = [0, 0, 0, 0, 0, 0, 0];
+        const prevCounts = [0, 0, 0, 0, 0, 0, 0];
+
+        const makeDays = (offset) => Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(Date.UTC(ey, em - 1, ed + i - todayIndex + offset, 12));
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        });
+
+        const weekDays     = makeDays(0);
+        const prevWeekDays = makeDays(-7);
+
+        tasks.forEach((t) => {
+            if (t.status !== 'completed') return;
+            const raw = String(t.updatedAt || t.createdAt || '');
+            if (!raw) return;
+            const s = /Z|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : raw + 'Z';
+            const d = new Date(s);
+            if (isNaN(d)) return;
+            const ds = toEcuadorStr(d);
+            const idx = weekDays.indexOf(ds);
+            if (idx !== -1) { counts[idx]++; return; }
+            const pidx = prevWeekDays.indexOf(ds);
+            if (pidx !== -1) prevCounts[pidx]++;
+        });
+
+        return {
+            weeklyData:    labels.map((label, i) => ({ label, count: counts[i] })),
+            weekTotal:     counts.reduce((a, b) => a + b, 0),
+            prevWeekTotal: prevCounts.reduce((a, b) => a + b, 0),
+        };
+    }, [tasks, todayIndex, ey, em, ed]);
+
+    const chartMax = Math.max(...weeklyData.map((d) => d.count), 1);
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Stack.Screen options={{
-                title: 'Panel de Control',
-                headerLargeTitle: true,
-                headerStyle: { backgroundColor: '#f3f6f4' },
-            }} />
+        <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
 
-            <View style={styles.header}>
-                <View style={styles.headerText}>
-                    <Text style={styles.eyebrow}>Resumen operativo</Text>
-                    <Text style={styles.title}>Hola, {userName}</Text>
-                    <Text style={styles.subtitle}>
-                        Revisa la bandeja general y la agenda programada sin repetir vistas ni accesos redundantes.
-                    </Text>
-                </View>
-
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{getInitials(userName)}</Text>
-                </View>
-            </View>
-
+            {/* ── Hero header ── */}
             <LinearGradient
-                colors={['#0f2f29', '#1a4b41']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroCard}
+                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.hero}
             >
+                {/* Círculos en su propio clip para no bloquear el overflow de las cards */}
+                <View style={styles.heroDecoClip} pointerEvents="none">
+                    <View style={styles.heroDeco1} />
+                    <View style={styles.heroDeco2} />
+                </View>
+
                 <View style={styles.heroTopRow}>
-                    <View style={styles.heroCopy}>
-                        <Text style={styles.heroLabel}>Agenda de hoy</Text>
-                        <Text style={styles.heroValue}>{todayAgenda.length}</Text>
-                        <Text style={styles.heroHelper}>
-                            {todayAgenda.length === 1 ? 'tarea programada hoy' : 'tareas programadas hoy'}
-                        </Text>
+                    <View style={styles.heroAvatar}>
+                        {user?.profile_photo_url ? (
+                            <Image source={{ uri: user.profile_photo_url }} style={styles.heroAvatarImage} />
+                        ) : (
+                            <Text style={styles.heroAvatarInitials}>{getInitials(userName)}</Text>
+                        )}
+                    </View>
+                    <View style={styles.heroNameCol}>
+                        <Text style={styles.heroGreeting}>{getGreeting()}</Text>
+                        <Text style={styles.heroName} numberOfLines={1}>{userName}</Text>
+                    </View>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={styles.heroBtn}
+                        onPress={() => router.push('/(tabs)/Calendar')}
+                    >
+                        <MaterialCommunityIcons name="calendar-month-outline" size={20} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={styles.heroBtn}
+                        onPress={() => router.push('/(tabs)/Notifications')}
+                    >
+                        <MaterialCommunityIcons name="bell-outline" size={20} color="#fff" />
+                        {unreadCount > 0 && (
+                            <View style={styles.heroBadge}>
+                                <Text style={styles.heroBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
+
+                {/* ── 3 stat cards al filo del bottom del hero ── */}
+                <View style={styles.statRow}>
+                    <View style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
+                            <MaterialCommunityIcons name="clock-outline" size={17} color="#F59E0B" />
+                        </View>
+                        <Text style={styles.statNum}>{incidentsLoaded ? (stats.pending ?? 0) : '–'}</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Pendientes</Text>
                     </View>
 
-                    <View style={styles.heroProgressPill}>
-                        <Text style={styles.heroProgressValue}>{completionRate}%</Text>
-                        <Text style={styles.heroProgressLabel}>completado</Text>
+                    <View style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: '#E8F8FB' }]}>
+                            <MaterialCommunityIcons name="progress-clock" size={17} color="#06B6D4" />
+                        </View>
+                        <Text style={styles.statNum}>{incidentsLoaded ? (stats.inProgress ?? 0) : '–'}</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>En curso</Text>
+                    </View>
+
+                    <View style={styles.statCard}>
+                        <View style={[styles.statIcon, { backgroundColor: '#DCFCE7' }]}>
+                            <MaterialCommunityIcons name="check-circle-outline" size={17} color="#22C55E" />
+                        </View>
+                        <Text style={styles.statNum}>{incidentsLoaded ? (stats.completed ?? 0) : '–'}</Text>
+                        <Text style={styles.statLabel} numberOfLines={1}>Completadas</Text>
                     </View>
                 </View>
 
-                <View style={styles.heroHighlight}>
-                    <Text style={styles.heroHighlightLabel}>Próxima tarea</Text>
-                    <Text style={styles.heroHighlightTitle}>
-                        {nextScheduledItem?.title || 'No hay tareas próximas'}
-                    </Text>
-                    <Text style={styles.heroHighlightMeta}>
-                        {nextScheduledItem ? formatTaskDate(nextScheduledItem) : 'Cuando existan tareas con fecha aparecerán aquí.'}
-                    </Text>
-                </View>
             </LinearGradient>
 
-            <View style={styles.metricsGrid}>
-                <View style={[styles.metricCard, styles.metricCardNeutral]}>
-                    <Text style={styles.metricLabel}>Bandeja total</Text>
-                    <Text style={styles.metricValue}>{stats.total}</Text>
-                </View>
-                <View style={[styles.metricCard, styles.metricCardWarning]}>
-                    <Text style={styles.metricLabel}>Pendientes</Text>
-                    <Text style={styles.metricValue}>{stats.pending}</Text>
-                </View>
-                <View style={[styles.metricCard, styles.metricCardCool]}>
-                    <Text style={styles.metricLabel}>En progreso</Text>
-                    <Text style={styles.metricValue}>{stats.inProgress}</Text>
-                </View>
-            </View>
-
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Agenda de hoy</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/Calendar')}>
-                    <Text style={styles.sectionLink}>Abrir agenda</Text>
-                </TouchableOpacity>
-            </View>
-
-            {todayAgenda.length > 0 ? (
-                todayAgenda.slice(0, 3).map((item) => {
-                    const tone = getStatusTone(item.status);
-
-                    return (
-                        <TouchableOpacity
-                            key={String(item.id)}
-                            style={styles.activityCard}
-                            onPress={() => router.push({
-                                pathname: '/IncidentDetail',
-                                params: { id: String(item.id), type: 'task' },
-                            })}
-                        >
-                            <View style={[styles.activityDot, tone.dot]} />
-                            <View style={styles.activityBody}>
-                                <View style={styles.activityHeader}>
-                                    <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                                    <View style={[styles.statusBadge, tone.badge]}>
-                                        <Text style={[styles.statusBadgeText, tone.badgeText]}>{item.statusLabel}</Text>
+            {/* ── Gráfica semanal ── */}
+            <View style={styles.section}>
+                {!tasksLoaded ? (
+                    <SkeletonChartCard shimmer={shimmer} />
+                ) : (
+                    <View style={styles.chartCard}>
+                        {/* Header dentro de la card */}
+                        <View style={styles.chartSummaryRow}>
+                            <View style={styles.chartSummaryTop}>
+                                <Text style={styles.chartEyebrow}>PROGRESO SEMANAL</Text>
+                                {prevWeekTotal > 0 && (
+                                    <View style={[
+                                        styles.chartTrendPill,
+                                        { backgroundColor: weekTotal >= prevWeekTotal ? '#DCFCE7' : '#FFE4E8' },
+                                    ]}>
+                                        <MaterialCommunityIcons
+                                            name={weekTotal >= prevWeekTotal ? 'trending-up' : 'trending-down'}
+                                            size={13}
+                                            color={weekTotal >= prevWeekTotal ? '#22C55E' : '#F43F5E'}
+                                        />
+                                        <Text style={[
+                                            styles.chartTrendText,
+                                            { color: weekTotal >= prevWeekTotal ? '#22C55E' : '#F43F5E' },
+                                        ]}>
+                                            {weekTotal >= prevWeekTotal ? '+' : ''}{weekTotal - prevWeekTotal} vs sem. ant.
+                                        </Text>
                                     </View>
-                                </View>
-                                <Text style={styles.activityMeta}>{formatTaskDate(item)}</Text>
-                                <Text style={styles.activityMeta}>{item.location || 'Sin ubicación'}</Text>
+                                )}
                             </View>
-                        </TouchableOpacity>
-                    );
-                })
-            ) : (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Sin tareas para hoy</Text>
-                    <Text style={styles.emptyText}>
-                        La agenda mostrará aquí las tareas programadas para el día actual.
-                    </Text>
-                </View>
-            )}
+                            <Text style={styles.chartSummaryLine}>
+                                <Text style={styles.chartSummaryNum}>{weekTotal}</Text>
+                                {weekTotal === 1 ? '  tarea completada' : '  tareas completadas'}
+                            </Text>
+                        </View>
 
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Próxima tarea programada</Text>
-            </View>
+                        <View style={{ height: 1, backgroundColor: '#F1F3FF' }} />
 
-            {nextScheduledItem ? (
-                <TouchableOpacity
-                    style={styles.focusCard}
-                    onPress={() => router.push({
-                        pathname: '/IncidentDetail',
-                        params: { id: String(nextScheduledItem.id), type: 'task' },
-                    })}
-                >
-                    <View style={styles.focusCardHeader}>
-                        <Text style={styles.focusTitle}>{nextScheduledItem.title}</Text>
-                        <View style={styles.priorityPill}>
-                            <Text style={styles.priorityPillText}>{nextScheduledItem.priority || 'Media'}</Text>
+                        <View style={styles.chartBars}>
+                            {weeklyData.map((day, index) => {
+                                const isToday = index === todayIndex;
+                                const barH = day.count > 0
+                                    ? Math.max((day.count / chartMax) * 120, 8)
+                                    : 3;
+                                return (
+                                    <View key={day.label} style={styles.chartBarCol}>
+                                        {day.count > 0 && (
+                                            <Text style={[styles.chartCount, isToday && styles.chartCountToday]}>
+                                                {day.count}
+                                            </Text>
+                                        )}
+                                        <View style={styles.chartTrack}>
+                                            <LinearGradient
+                                                colors={isToday ? ['#2D3FE0', '#4A6CF7'] : ['#C7D2FE', '#A5B4FC']}
+                                                start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                                                style={[styles.chartBar, { height: barH }]}
+                                            />
+                                        </View>
+                                        <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>
+                                            {day.label}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
                         </View>
                     </View>
-                    <Text style={styles.focusMeta}>{formatAgendaDay(getTaskStart(nextScheduledItem))}</Text>
-                    <Text style={styles.focusDescription} numberOfLines={2}>
-                        {nextScheduledItem.description || 'Sin descripción adicional.'}
-                    </Text>
-                    <View style={styles.focusFooter}>
-                        <Text style={styles.focusFooterText}>Responsable: {nextScheduledItem.assignedCleanerName || 'Sin asignar'}</Text>
-                        <Text style={styles.focusFooterLink}>Abrir detalle</Text>
-                    </View>
-                </TouchableOpacity>
-            ) : (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Sin próxima tarea</Text>
-                    <Text style={styles.emptyText}>
-                        Todavía no hay elementos programados a futuro en la agenda.
-                    </Text>
-                </View>
-            )}
-
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Pendientes recientes</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/Incidents')}>
-                    <Text style={styles.sectionLink}>Abrir incidencias</Text>
-                </TouchableOpacity>
+                )}
             </View>
 
-            {recentPendingItems.length > 0 ? (
-                recentPendingItems.map((item) => {
-                    const tone = getStatusTone(item.status);
-
-                    return (
+            {/* ── Actividad reciente ── */}
+            <View style={styles.section}>
+                <View style={styles.sectionRow}>
+                    <Text style={styles.sectionTitle}>Actividad reciente</Text>
+                    {incidentsLoaded && recentActivity.length > 0 && (
                         <TouchableOpacity
-                            key={String(item.id)}
-                            style={styles.activityCard}
-                            onPress={() => router.push({
-                                pathname: '/IncidentDetail',
-                                params: { id: String(item.id), type: 'incident' },
-                            })}
+                            activeOpacity={0.85}
+                            style={styles.sectionLink}
+                            onPress={() => router.push('/(tabs)/Incidents')}
                         >
-                            <View style={[styles.activityDot, tone.dot]} />
-                            <View style={styles.activityBody}>
-                                <View style={styles.activityHeader}>
-                                    <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
-                                    <View style={[styles.statusBadge, tone.badge]}>
-                                        <Text style={[styles.statusBadgeText, tone.badgeText]}>{item.statusLabel}</Text>
-                                    </View>
-                                </View>
-                                <Text style={styles.activityMeta}>{item.location || 'Sin ubicación'}</Text>
-                                <Text style={styles.activityMeta}>Responsable: {item.assignedCleanerName || 'Sin asignar'}</Text>
-                            </View>
+                            <Text style={styles.sectionLinkText}>Ver todas</Text>
+                            <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
                         </TouchableOpacity>
-                    );
-                })
-            ) : (
-                <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Sin pendientes recientes</Text>
-                    <Text style={styles.emptyText}>
-                        Cuando existan incidencias activas aparecerán aquí para seguimiento rápido.
-                    </Text>
+                    )}
                 </View>
-            )}
+
+                {!incidentsLoaded ? (
+                    <View style={styles.timelineCard}>
+                        {[0, 1, 2, 3].map((i) => (
+                            <SkeletonTimelineRow key={i} shimmer={shimmer} isLast={i === 3} />
+                        ))}
+                    </View>
+                ) : recentActivity.length === 0 ? (
+                    <View style={styles.emptyCard}>
+                        <LinearGradient
+                            colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={styles.emptyIconBox}
+                        >
+                            <View style={styles.emptyIconDeco} />
+                            <MaterialCommunityIcons name="clipboard-text-clock-outline" size={30} color="rgba(255,255,255,0.9)" />
+                        </LinearGradient>
+                        <Text style={styles.emptyTitle}>Sin actividad reciente</Text>
+                        <Text style={styles.emptyBody}>Las incidencias que registres aparecerán aquí.</Text>
+                    </View>
+                ) : (
+                    <View style={styles.timelineCard}>
+                        {recentActivity.map((item, index) => {
+                            const sc = getStatusConfig(item.status);
+                            const isLast = index === recentActivity.length - 1;
+                            return (
+                                <TouchableOpacity
+                                    key={String(item.id)}
+                                    activeOpacity={0.85}
+                                    onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'incident' } })}
+                                >
+                                    <View style={styles.timelineRow}>
+                                        <View style={styles.timelineLeft}>
+                                            <View style={[styles.timelineDot, { backgroundColor: sc.stripe }]} />
+                                            {!isLast && <View style={styles.timelineLine} />}
+                                        </View>
+                                        <View style={[styles.timelineBody, !isLast && styles.timelineBodyBorder]}>
+                                            <View style={styles.timelineTopRow}>
+                                                <Text style={styles.timelineTitle} numberOfLines={1}>{item.title}</Text>
+                                                <Text style={styles.timelineTime}>{formatRelative(item.createdAt)}</Text>
+                                            </View>
+                                            {item.location && (
+                                                <Text style={styles.timelineMeta} numberOfLines={1}>{item.location}</Text>
+                                            )}
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                )}
+            </View>
         </ScrollView>
     );
 }
 
+// ─── styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f3f6f4',
+    container: { flex: 1, backgroundColor: '#EEF2FF' },
+    content:   { paddingBottom: 48 },
+
+    // Hero header
+    hero: {
+        paddingTop: 56, paddingBottom: 0, paddingHorizontal: 24,
     },
-    content: {
-        padding: 20,
-        paddingBottom: 38,
+    heroDecoClip: {
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        overflow: 'hidden',
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 20,
+    heroDeco1: {
+        position: 'absolute', top: -50, right: -40,
+        width: 200, height: 200, borderRadius: 100,
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
-    headerText: {
-        flex: 1,
-        paddingRight: 16,
-    },
-    eyebrow: {
-        color: '#6b7d78',
-        fontSize: 12,
-        fontWeight: '700',
-        letterSpacing: 1.1,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-    },
-    title: {
-        color: '#16211e',
-        fontSize: 30,
-        fontWeight: '800',
-        marginBottom: 8,
-    },
-    subtitle: {
-        color: '#64746f',
-        fontSize: 15,
-        lineHeight: 22,
-    },
-    avatar: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        backgroundColor: '#dbe5e1',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarText: {
-        color: '#17342d',
-        fontSize: 16,
-        fontWeight: '800',
-    },
-    heroCard: {
-        borderRadius: 30,
-        padding: 22,
-        marginBottom: 18,
+    heroDeco2: {
+        position: 'absolute', bottom: -20, left: -30,
+        width: 120, height: 120, borderRadius: 60,
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     heroTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 14,
-        marginBottom: 18,
+        flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20,
     },
-    heroCopy: {
-        flex: 1,
+    heroAvatar: {
+        width: 64, height: 64, borderRadius: 32,
+        backgroundColor: 'rgba(255,255,255,0.20)',
+        alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
     },
-    heroLabel: {
-        color: '#9fd0c2',
-        fontSize: 13,
-        fontWeight: '700',
-        marginBottom: 8,
+    heroAvatarImage: { width: 64, height: 64, borderRadius: 32 },
+    heroAvatarInitials: { color: '#ffffff', fontSize: 22, fontWeight: '800' },
+    heroNameCol: { flex: 1, gap: 4 },
+    heroGreeting: { color: 'rgba(255,255,255,0.65)', fontSize: 14, fontWeight: '600' },
+    heroName: { color: '#ffffff', fontSize: 26, fontWeight: '800' },
+    heroBtn: {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center', justifyContent: 'center',
+        position: 'relative',
     },
-    heroValue: {
-        color: '#ffffff',
-        fontSize: 52,
-        fontWeight: '800',
-        lineHeight: 56,
+    heroBadge: {
+        position: 'absolute', top: 4, right: 4,
+        backgroundColor: '#F43F5E', borderRadius: 999,
+        minWidth: 14, height: 14, paddingHorizontal: 2,
+        alignItems: 'center', justifyContent: 'center',
     },
-    heroHelper: {
-        color: '#d7ebe5',
-        fontSize: 14,
-        marginTop: 4,
-    },
-    heroProgressPill: {
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 22,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    heroProgressValue: {
-        color: '#ffffff',
-        fontSize: 24,
-        fontWeight: '800',
-    },
-    heroProgressLabel: {
-        color: '#c3ddd6',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    heroHighlight: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 20,
-        padding: 16,
-    },
-    heroHighlightLabel: {
-        color: '#9fd0c2',
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        marginBottom: 6,
-    },
-    heroHighlightTitle: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: '800',
-        marginBottom: 4,
-    },
-    heroHighlightMeta: {
-        color: '#d7ebe5',
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    metricsGrid: {
+    heroBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
+
+    // Stat cards (al filo del bottom del hero)
+    statRow: {
         flexDirection: 'row',
         gap: 10,
-        marginBottom: 24,
     },
-    metricCard: {
+    statCard: {
         flex: 1,
-        borderRadius: 22,
-        padding: 16,
-    },
-    metricCardNeutral: {
+        height: 104,
         backgroundColor: '#ffffff',
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-    },
-    metricCardWarning: {
-        backgroundColor: '#f7efe3',
-        borderWidth: 1,
-        borderColor: '#ebdec5',
-    },
-    metricCardCool: {
-        backgroundColor: '#eaf3f8',
-        borderWidth: 1,
-        borderColor: '#d3e4ef',
-    },
-    metricLabel: {
-        color: '#687974',
-        fontSize: 12,
-        marginBottom: 8,
-    },
-    metricValue: {
-        color: '#16211e',
-        fontSize: 30,
-        fontWeight: '800',
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
         alignItems: 'center',
-        marginBottom: 12,
+        justifyContent: 'center',
+        gap: 6,
+        shadowColor: '#2D3FE0',
+        shadowOpacity: 0.14,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 4,
     },
-    sectionTitle: {
-        color: '#16211e',
-        fontSize: 19,
-        fontWeight: '800',
+    statIcon: {
+        width: 36, height: 36, borderRadius: 18,
+        alignItems: 'center', justifyContent: 'center',
     },
+    statNum: {
+        color: '#1A1F36', fontSize: 22, fontWeight: '800',
+    },
+    statLabel: {
+        color: '#8F95B2', fontSize: 10, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.5,
+        textAlign: 'center',
+    },
+
+    // Section
+    section:    { paddingHorizontal: 20, paddingTop: 24 },
+    sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    sectionTitle: { color: '#1A1F36', fontSize: 17, fontWeight: '700', marginBottom: 14 },
     sectionLink: {
-        color: '#0f2f29',
-        fontSize: 14,
-        fontWeight: '800',
-    },
-    focusCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 18,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 24,
-    },
-    focusCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 10,
-        marginBottom: 8,
-    },
-    focusTitle: {
-        flex: 1,
-        color: '#16211e',
-        fontSize: 19,
-        fontWeight: '800',
-    },
-    priorityPill: {
-        backgroundColor: '#f3eee2',
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-    },
-    priorityPillText: {
-        color: '#906c28',
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    focusMeta: {
-        color: '#0f2f29',
-        fontSize: 13,
-        fontWeight: '700',
-        marginBottom: 10,
-        textTransform: 'capitalize',
-    },
-    focusDescription: {
-        color: '#64746f',
-        fontSize: 14,
-        lineHeight: 21,
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: '#E8EDFF', borderRadius: 999,
+        paddingHorizontal: 12, paddingVertical: 6,
         marginBottom: 14,
     },
-    focusFooter: {
-        flexDirection: 'row',
+    sectionLinkText: { color: '#4A6CF7', fontSize: 12, fontWeight: '700' },
+
+    // Chart
+    chartCard: {
+        backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden',
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        gap: 0,
+    },
+    chartSummaryRow: {
+        flexDirection: 'column', gap: 6,
+        paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16,
+    },
+    chartSummaryTop: {
+        flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: 14,
-        borderTopWidth: 1,
-        borderTopColor: '#eef3f0',
     },
-    focusFooterText: {
-        color: '#64746f',
-        fontSize: 13,
-        flex: 1,
-        marginRight: 10,
+    chartEyebrow: {
+        color: '#8F95B2', fontSize: 10, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.8,
     },
-    focusFooterLink: {
-        color: '#10342d',
-        fontSize: 13,
-        fontWeight: '800',
+    chartSummaryLine: {
+        color: '#8F95B2', fontSize: 14, fontWeight: '500',
     },
-    activityCard: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        backgroundColor: '#ffffff',
-        borderRadius: 22,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 12,
+    chartSummaryNum: {
+        color: '#1A1F36', fontSize: 20, fontWeight: '800',
     },
-    activityDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginTop: 8,
-        marginRight: 12,
+    chartTrendPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
     },
-    activityBody: {
-        flex: 1,
+    chartTrendText: {
+        fontSize: 11, fontWeight: '700',
     },
-    activityHeader: {
-        flexDirection: 'row',
+    chartBars: {
+        flexDirection: 'row', alignItems: 'flex-end',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: 10,
-        marginBottom: 6,
+        height: 180,
+        paddingHorizontal: 20, paddingBottom: 16, paddingTop: 16,
     },
-    activityTitle: {
-        flex: 1,
-        color: '#16211e',
-        fontSize: 16,
-        fontWeight: '800',
+    chartBarCol: {
+        flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 5,
     },
-    activityMeta: {
-        color: '#64746f',
-        fontSize: 13,
-        lineHeight: 19,
+    chartTrack: {
+        width: 28, height: 120, justifyContent: 'flex-end',
     },
-    statusBadge: {
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+    chartBar: {
+        width: 28, borderRadius: 6,
     },
-    statusBadgeText: {
-        fontSize: 11,
-        fontWeight: '800',
+    chartCount: {
+        color: '#1A1F36', fontSize: 11, fontWeight: '700',
     },
-    dotPending: {
-        backgroundColor: '#c48a21',
+    chartCountToday: {
+        color: '#2D3FE0',
     },
-    dotProgress: {
-        backgroundColor: '#1676a1',
+    chartLabel: {
+        color: '#8F95B2', fontSize: 11, fontWeight: '600', marginTop: 4,
     },
-    dotCompleted: {
-        backgroundColor: '#1f9b66',
+    chartLabelToday: {
+        color: '#2D3FE0', fontWeight: '800',
     },
-    badgePending: {
-        backgroundColor: '#f5ebd8',
-    },
-    badgeTextPending: {
-        color: '#936b20',
-    },
-    badgeProgress: {
-        backgroundColor: '#e3eff6',
-    },
-    badgeTextProgress: {
-        color: '#14688f',
-    },
-    badgeCompleted: {
-        backgroundColor: '#e5f4ec',
-    },
-    badgeTextCompleted: {
-        color: '#1b8659',
-    },
+
+    // Empty state actividad
     emptyCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 18,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-        marginBottom: 24,
+        backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 36,
+        paddingHorizontal: 24, alignItems: 'center', gap: 12,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    },
+    emptyIconBox: {
+        width: 72, height: 72, borderRadius: 22,
+        alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden', marginBottom: 4,
+        shadowColor: '#2D3FE0', shadowOpacity: 0.25,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+    },
+    emptyIconDeco: {
+        position: 'absolute', top: -16, right: -16,
+        width: 56, height: 56, borderRadius: 28,
+        backgroundColor: 'rgba(255,255,255,0.12)',
     },
     emptyTitle: {
-        color: '#16211e',
-        fontSize: 16,
-        fontWeight: '800',
-        marginBottom: 6,
+        color: '#1A1F36', fontSize: 16, fontWeight: '800', textAlign: 'center',
     },
-    emptyText: {
-        color: '#687974',
-        fontSize: 14,
-        lineHeight: 21,
+    emptyBody: {
+        color: '#8F95B2', fontSize: 13, lineHeight: 19,
+        textAlign: 'center', maxWidth: 240,
     },
+
+    // Timeline
+    timelineCard: {
+        backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 8,
+        paddingLeft: 16, paddingRight: 16,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+        shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    },
+    timelineRow: { flexDirection: 'row', minHeight: 56 },
+    timelineLeft: { width: 24, alignItems: 'center', paddingTop: 16 },
+    timelineDot:  { width: 10, height: 10, borderRadius: 5, zIndex: 1 },
+    timelineLine: {
+        position: 'absolute', top: 26, bottom: 0,
+        width: 1.5, backgroundColor: '#F1F3FF',
+    },
+    timelineBody: {
+        flex: 1, paddingVertical: 14, paddingLeft: 12, gap: 3,
+    },
+    timelineBodyBorder: {
+        borderBottomWidth: 1, borderBottomColor: '#F1F3FF',
+    },
+    timelineTopRow: {
+        flexDirection: 'row', alignItems: 'flex-start',
+        justifyContent: 'space-between', gap: 8,
+    },
+    timelineTitle: { flex: 1, color: '#1A1F36', fontSize: 14, fontWeight: '700' },
+    timelineTime:  { color: '#8F95B2', fontSize: 11, fontWeight: '500', flexShrink: 0 },
+    timelineMeta:  { color: '#8F95B2', fontSize: 12, fontWeight: '500' },
 });

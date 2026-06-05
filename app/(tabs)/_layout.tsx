@@ -1,14 +1,46 @@
-import { Redirect, Tabs } from 'expo-router';
+import { Redirect, Tabs, useRouter } from 'expo-router';
 import React from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, Platform, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAppContext } from '../../src/context/AppContext';
+
+function AddIncidentButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => router.push('/ReportIncident')}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', top: -18 }}
+    >
+      <LinearGradient
+        colors={['#2D3FE0', '#4A6CF7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={{
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#2D3FE0',
+          shadowOpacity: 0.40,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+          elevation: 10,
+        }}
+      >
+        <MaterialCommunityIcons name="plus" size={30} color="#ffffff" />
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
 
 export default function TabLayout() {
 
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isAuthHydrated, unreadNotificationsCount } = useAppContext();
+  const { isAuthenticated, isAuthHydrated } = useAppContext();
 
   if (!isAuthHydrated) {
     return (
@@ -22,24 +54,20 @@ export default function TabLayout() {
     return <Redirect href="/Login" />;
   }
 
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        // Color del icono y texto cuando está seleccionado
-        tabBarActiveTintColor: '#b0b300', 
-        // Color cuando no está seleccionado
-        tabBarInactiveTintColor: '#94a3b8', 
-        // Estilo de la barra de botones
+        tabBarActiveTintColor: '#4A6CF7',
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
           backgroundColor: '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#d9e5e0',
+          borderTopColor: '#E8EDFF',
           height: Platform.OS === 'ios' ? 70 + insets.bottom : 75 + insets.bottom,
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
-          position: 'relative',
+          overflow: 'visible',
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -47,24 +75,33 @@ export default function TabLayout() {
           marginBottom: 5,
         },
       }}>
-      
+
       <Tabs.Screen
         name="Dashboard"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color, size }) => (
+          tabBarLabel: 'Inicio',
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="home-variant" size={28} color={color} />
           ),
         }}
       />
-      
+
       <Tabs.Screen
         name="Incidents"
         options={{
           title: 'Incidencias',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="alert-circle-outline" size={28} color={color} />
           ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="add"
+        options={{
+          title: '',
+          tabBarButton: () => <AddIncidentButton />,
         }}
       />
 
@@ -72,7 +109,7 @@ export default function TabLayout() {
         name="Tasks"
         options={{
           title: 'Mis tareas',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="clipboard-check-outline" size={28} color={color} />
           ),
         }}
@@ -80,30 +117,20 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="Calendar"
-        options={{
-          title: 'Agenda',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="calendar-month-outline" size={28} color={color} />
-          ),
-        }}
+        options={{ href: null }}
       />
 
       <Tabs.Screen
         name="Notifications"
-        options={{
-          title: 'Avisos',
-          tabBarBadge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="bell-outline" size={28} color={color} />
-          ),
-        }}
+        options={{ href: null }}
       />
-      
+
       <Tabs.Screen
         name="Profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => (
+          tabBarLabel: 'Perfil',
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="account-circle-outline" size={28} color={color} />
           ),
         }}

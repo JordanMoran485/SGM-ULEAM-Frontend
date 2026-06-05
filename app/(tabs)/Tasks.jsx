@@ -1,57 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomSearchBar } from '../../src/components/CustomSearchBar';
 import { useAppContext } from '../../src/context/AppContext';
 
 const FILTERS = [
-  { key: 'all', label: 'Todas' },
-  { key: 'pending', label: 'Pendientes' },
+  { key: 'all',         label: 'Todas' },
+  { key: 'pending',     label: 'Pendientes' },
   { key: 'in_progress', label: 'En progreso' },
-  { key: 'completed', label: 'Completadas' },
+  { key: 'completed',   label: 'Completadas' },
 ];
 
-function getStatusStyles(status) {
-  if (status === 'completed') {
-    return {
-      badge: styles.badgeCompleted,
-      badgeText: styles.badgeTextCompleted,
-      dot: styles.dotCompleted,
-    };
-  }
-
-  if (status === 'in_progress') {
-    return {
-      badge: styles.badgeProgress,
-      badgeText: styles.badgeTextProgress,
-      dot: styles.dotProgress,
-    };
-  }
-
-  return {
-    badge: styles.badgePending,
-    badgeText: styles.badgeTextPending,
-    dot: styles.dotPending,
-  };
+function getStatusConfig(status) {
+  if (status === 'completed')  return { stripe: '#22C55E', bg: '#DCFCE7', color: '#16A34A', label: 'Completada' };
+  if (status === 'in_progress') return { stripe: '#4A6CF7', bg: '#E8EDFF', color: '#2D3FE0', label: 'En progreso' };
+  return { stripe: '#F59E0B', bg: '#FEF3C7', color: '#D97706', label: 'Pendiente' };
 }
 
 function firstRole(user) {
-  if (Array.isArray(user?.roles) && user.roles[0]?.name) {
-    return user.roles[0].name;
-  }
-
+  if (Array.isArray(user?.roles) && user.roles[0]?.name) return user.roles[0].name;
   return user?.role || user?.cargo || null;
 }
 
 function isTaskForCurrentUser(item, user) {
-  if (!user) {
-    return false;
-  }
-
+  if (!user) return false;
   const fullName = [user.name, user.lastname].filter(Boolean).join(' ').trim().toUpperCase();
   const assignedName = (item.assignedCleanerName || '').trim().toUpperCase();
-
   return (
     String(item.userId || '') === String(user.id || '') ||
     (fullName && assignedName && fullName === assignedName)
@@ -60,100 +36,54 @@ function isTaskForCurrentUser(item, user) {
 
 function formatTaskDate(item) {
   const raw = item?.startAt || item?.dueDate || item?.createdAt;
-
-  if (!raw) {
-    return 'Sin fecha programada';
-  }
-
+  if (!raw) return 'Sin fecha';
   const parsed = new Date(raw);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Fecha no disponible';
-  }
-
-  return new Intl.DateTimeFormat('es-EC', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsed);
+  if (Number.isNaN(parsed.getTime())) return 'Sin fecha';
+  const diff = (Date.now() - parsed.getTime()) / 1000;
+  if (diff < 60) return 'Ahora';
+  if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+  return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(parsed);
 }
 
 export default function TasksScreen() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [searchOpen, setSearchOpen]     = useState(false);
   const router = useRouter();
   const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
   const isConserje = firstRole(user) === 'conserje';
 
   useEffect(() => {
     if (!tasksLoaded) {
-      refreshTasks().catch((error) => {
-        Alert.alert('Error al cargar tareas', error?.message || 'No se pudieron cargar las tareas.');
-      });
+      refreshTasks().catch((err) =>
+        Alert.alert('Error al cargar tareas', err?.message || 'No se pudieron cargar las tareas.')
+      );
     }
   }, [tasksLoaded, refreshTasks]);
 
   const visibleTasks = useMemo(() => {
-    const scopedTasks = isConserje ? tasks.filter((item) => isTaskForCurrentUser(item, user)) : tasks;
-    const query = search.trim().toUpperCase();
-
-    return scopedTasks
-      .filter((item) => statusFilter === 'all' || item.status === statusFilter)
-      .filter((item) => {
-        if (!query) {
-          return true;
-        }
-
-        const searchableContent = [
-          item.title,
-          item.description,
-          item.location,
-          item.assignedCleanerName,
-          item.priority,
-          item.statusLabel,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toUpperCase();
-
-        return searchableContent.includes(query);
+    const scoped = isConserje ? tasks.filter((t) => isTaskForCurrentUser(t, user)) : tasks;
+    const query  = search.trim().toUpperCase();
+    return scoped
+      .filter((t) => statusFilter === 'all' || t.status === statusFilter)
+      .filter((t) => {
+        if (!query) return true;
+        return [t.title, t.description, t.location, t.assignedCleanerName, t.priority]
+          .filter(Boolean).join(' ').toUpperCase().includes(query);
       })
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [isConserje, search, statusFilter, tasks, user]);
 
-  const summary = useMemo(() => {
-    return visibleTasks.reduce(
-      (acc, item) => {
-        acc.total += 1;
-
-        if (item.status === 'pending') {
-          acc.pending += 1;
-        } else if (item.status === 'in_progress') {
-          acc.inProgress += 1;
-        } else if (item.status === 'completed') {
-          acc.completed += 1;
-        }
-
-        return acc;
-      },
-      { total: 0, pending: 0, inProgress: 0, completed: 0 }
-    );
-  }, [visibleTasks]);
-
   const refreshScreen = async () => {
     setRefreshing(true);
-
-    try {
-      await refreshTasks();
-    } catch (error) {
-      Alert.alert('Error al actualizar tareas', error?.message || 'No se pudieron actualizar las tareas.');
-    } finally {
-      setRefreshing(false);
-    }
+    try { await refreshTasks(); }
+    catch (err) { Alert.alert('Error', err?.message || 'No se pudieron actualizar las tareas.'); }
+    finally { setRefreshing(false); }
   };
+
+  const screenTitle = isConserje ? 'Mis tareas' : 'Tareas asignadas';
 
   return (
     <FlatList
@@ -163,119 +93,145 @@ export default function TasksScreen() {
       keyExtractor={(item) => String(item.id)}
       refreshing={refreshing}
       onRefresh={refreshScreen}
+      showsVerticalScrollIndicator={false}
       ListHeaderComponent={
         <View>
-          <View style={styles.header}>
-            <Text style={styles.eyebrow}>Trabajo asignado</Text>
-            <Text style={styles.title}>{isConserje ? 'Mis tareas' : 'Tareas asignadas'}</Text>
-            <Text style={styles.subtitle}>
-              {isConserje
-                ? 'Esta es tu bandeja directa de trabajo. Aquí ves solo las tareas que te asignaron.'
-                : 'Aquí puedes revisar todas las tareas asignadas por el sistema.'}
-            </Text>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <View style={[styles.summaryCard, styles.summaryCardNeutral]}>
-              <Text style={styles.summaryLabel}>Total</Text>
-              <Text style={styles.summaryValue}>{summary.total}</Text>
-            </View>
-            <View style={[styles.summaryCard, styles.summaryCardWarning]}>
-              <Text style={styles.summaryLabel}>Pendientes</Text>
-              <Text style={styles.summaryValue}>{summary.pending}</Text>
-            </View>
-            <View style={[styles.summaryCard, styles.summaryCardCool]}>
-              <Text style={styles.summaryLabel}>En progreso</Text>
-              <Text style={styles.summaryValue}>{summary.inProgress}</Text>
-            </View>
-          </View>
-
-          <CustomSearchBar
-            onChangeText={setSearch}
-            value={search}
-            placeholder="Buscar por tarea, ubicación o prioridad"
-          />
-
-          <View style={styles.filterRow}>
-            {FILTERS.map((filter) => {
-              const active = statusFilter === filter.key;
-
-              return (
+          {/* ── Hero ── */}
+          <LinearGradient
+            colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.hero}
+          >
+            <View style={styles.heroDeco1} />
+            <View style={styles.heroDeco2} />
+            <View style={styles.heroRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.heroEyebrow}>TRABAJO ASIGNADO</Text>
+                <Text style={styles.heroTitle}>{screenTitle}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <TouchableOpacity
-                  key={filter.key}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setStatusFilter(filter.key)}
+                  activeOpacity={0.85}
+                  style={[styles.heroBtn, searchOpen && styles.heroBtnActive]}
+                  onPress={() => { setSearchOpen((v) => !v); if (searchOpen) setSearch(''); }}
                 >
-                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                    {filter.label}
-                  </Text>
+                  <MaterialCommunityIcons name="magnify" size={20} color="#fff" />
+                </TouchableOpacity>
+                <View style={styles.heroBadge}>
+                  <Text style={styles.heroBadgeNum}>{visibleTasks.length}</Text>
+                  <Text style={styles.heroBadgeLabel}>tareas</Text>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
+
+          {/* ── Buscador (visible solo al pulsar la lupa) ── */}
+          {searchOpen && (
+            <View style={styles.searchWrap}>
+              <CustomSearchBar
+                onChangeText={setSearch}
+                value={search}
+                placeholder="Buscar por tarea, ubicación o prioridad"
+                autoFocus
+              />
+            </View>
+          )}
+
+          {/* ── Filtros ── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            {FILTERS.map((f) => {
+              const active = statusFilter === f.key;
+              return active ? (
+                <TouchableOpacity key={f.key} activeOpacity={0.85} style={{ borderRadius: 999, overflow: 'hidden' }}
+                  onPress={() => setStatusFilter(f.key)}>
+                  <LinearGradient
+                    colors={['#2D3FE0', '#4A6CF7']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={styles.filterChipActive}
+                  >
+                    <Text style={styles.filterChipTextActive}>{f.label}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity key={f.key} activeOpacity={0.85}
+                  style={styles.filterChip}
+                  onPress={() => setStatusFilter(f.key)}>
+                  <Text style={styles.filterChipText}>{f.label}</Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
-          <View style={styles.listHeaderRow}>
-            <Text style={styles.sectionTitle}>Bandeja de tareas</Text>
-            <View style={styles.listMetaPill}>
-              <MaterialCommunityIcons name="clipboard-text-outline" size={15} color="#10342d" />
-              <Text style={styles.listMetaPillText}>{visibleTasks.length}</Text>
+          {/* ── Encabezado lista ── */}
+          <View style={styles.listHeader}>
+            <Text style={styles.listTitle}>Bandeja de tareas</Text>
+            <View style={styles.listCountPill}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={13} color="#4A6CF7" />
+              <Text style={styles.listCountText}>{visibleTasks.length}</Text>
             </View>
           </View>
         </View>
       }
       renderItem={({ item }) => {
-        const statusStyles = getStatusStyles(item.status);
-
+        const sc = getStatusConfig(item.status);
         return (
           <TouchableOpacity
+            activeOpacity={0.85}
             style={styles.card}
-            onPress={() =>
-              router.push({
-                pathname: '/IncidentDetail',
-                params: { id: String(item.id), type: 'task' },
-              })
-            }
+            onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'task' } })}
           >
-            <View style={styles.cardHeader}>
-              <View style={styles.titleBlock}>
-                <View style={[styles.statusDot, statusStyles.dot]} />
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.title}
-                </Text>
+            <View style={[styles.cardStripe, { backgroundColor: sc.stripe }]} />
+            <View style={styles.cardBody}>
+              {/* Fila superior: badge + timestamp */}
+              <View style={styles.cardTopRow}>
+                <View style={[styles.cardBadge, { backgroundColor: sc.bg }]}>
+                  <Text style={[styles.cardBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                </View>
+                <Text style={styles.cardTime}>{formatTaskDate(item)}</Text>
               </View>
 
-              <View style={[styles.statusBadge, statusStyles.badge]}>
-                <Text style={[styles.statusBadgeText, statusStyles.badgeText]}>{item.statusLabel}</Text>
-              </View>
-            </View>
+              {/* Título */}
+              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
 
-            <Text style={styles.cardDescription} numberOfLines={2}>
-              {item.description || 'Sin descripción registrada.'}
-            </Text>
+              {/* Descripción */}
+              <Text style={styles.cardDesc} numberOfLines={2}>
+                {item.description || 'Sin descripción registrada.'}
+              </Text>
 
-            <View style={styles.metaGrid}>
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaLabel}>Ubicación</Text>
-                <Text style={styles.metaValue}>{item.location || 'Sin ubicación'}</Text>
+              {/* Footer: ubicación + acción */}
+              <View style={styles.cardFooter}>
+                <View style={styles.cardLocation}>
+                  <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
+                  <Text style={styles.cardLocationText} numberOfLines={1}>
+                    {item.location || 'Sin ubicación'}
+                  </Text>
+                </View>
+                <View style={styles.cardAction}>
+                  <Text style={styles.cardActionText}>Ver detalle</Text>
+                  <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
+                </View>
               </View>
-              <View style={styles.metaBlock}>
-                <Text style={styles.metaLabel}>Fecha</Text>
-                <Text style={styles.metaValue}>{formatTaskDate(item)}</Text>
-              </View>
-            </View>
-
-            <View style={styles.footerRow}>
-              <Text style={styles.footerInfo}>Prioridad: {item.priority || 'Media'}</Text>
-              <Text style={styles.footerAction}>Ver detalle</Text>
             </View>
           </TouchableOpacity>
         );
       }}
       ListEmptyComponent={
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyTitle}>No tienes tareas asignadas</Text>
-          <Text style={styles.emptyText}>
-            Cuando un supervisor apruebe una incidencia y te la asigne, aparecerá aquí.
+          <LinearGradient
+            colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.emptyIconBox}
+          >
+            <View style={styles.emptyIconDeco} />
+            <MaterialCommunityIcons name="clipboard-check-outline" size={30} color="rgba(255,255,255,0.9)" />
+          </LinearGradient>
+          <Text style={styles.emptyTitle}>Sin tareas asignadas</Text>
+          <Text style={styles.emptyBody}>
+            Cuando un supervisor te asigne una tarea, aparecerá aquí.
           </Text>
         </View>
       }
@@ -284,256 +240,159 @@ export default function TasksScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f6f4',
+  container: { flex: 1, backgroundColor: '#EEF2FF' },
+  content:   { paddingBottom: 48 },
+
+  // Hero
+  hero: {
+    paddingTop: 64, paddingBottom: 28, paddingHorizontal: 24,
+    overflow: 'hidden',
   },
-  content: {
-    padding: 20,
-    paddingBottom: 34,
+  heroDeco1: {
+    position: 'absolute', top: -50, right: -40,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  header: {
-    marginTop: 54,
-    marginBottom: 18,
+  heroDeco2: {
+    position: 'absolute', bottom: -20, left: -30,
+    width: 120, height: 120, borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  eyebrow: {
-    color: '#6b7d78',
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.1,
-    marginBottom: 8,
+  heroRow: {
+    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
   },
-  title: {
-    color: '#16211e',
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: 8,
+  heroEyebrow: {
+    color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700',
+    textTransform: 'uppercase', letterSpacing: 1.1, marginBottom: 6,
   },
-  subtitle: {
-    color: '#64746f',
-    fontSize: 15,
-    lineHeight: 22,
+  heroTitle: {
+    color: '#ffffff', fontSize: 28, fontWeight: '800',
   },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+  heroBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  summaryCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 16,
+  heroBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.30)',
   },
-  summaryCardNeutral: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d9e5e0',
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 16,
+    paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center',
   },
-  summaryCardWarning: {
-    backgroundColor: '#f7efe3',
-    borderWidth: 1,
-    borderColor: '#ebdec5',
+  heroBadgeNum: {
+    color: '#ffffff', fontSize: 22, fontWeight: '800',
   },
-  summaryCardCool: {
-    backgroundColor: '#eaf3f8',
-    borderWidth: 1,
-    borderColor: '#d3e4ef',
+  heroBadgeLabel: {
+    color: 'rgba(255,255,255,0.70)', fontSize: 11, fontWeight: '600',
   },
-  summaryLabel: {
-    color: '#687974',
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  summaryValue: {
-    color: '#16211e',
-    fontSize: 28,
-    fontWeight: '800',
-  },
+
+  // Search
+  searchWrap: { paddingHorizontal: 20, paddingTop: 20 },
+
+  // Filtros
   filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 18,
-  },
-  filterChip: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#d3dfda',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 20, paddingVertical: 16, gap: 8,
   },
   filterChipActive: {
-    backgroundColor: '#10342d',
-    borderColor: '#10342d',
-  },
-  filterChipText: {
-    color: '#596a65',
-    fontSize: 13,
-    fontWeight: '700',
+    paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999,
   },
   filterChipTextActive: {
-    color: '#f4f7f5',
+    color: '#ffffff', fontSize: 13, fontWeight: '700',
   },
-  listHeaderRow: {
-    flexDirection: 'row',
+  filterChip: {
+    borderRadius: 999, backgroundColor: '#ffffff',
+    paddingHorizontal: 18, paddingVertical: 9,
+    shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  filterChipText: {
+    color: '#8F95B2', fontSize: 13, fontWeight: '600',
+  },
+
+  // Encabezado lista
+  listHeader: {
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 20, marginBottom: 12,
   },
-  sectionTitle: {
-    color: '#16211e',
-    fontSize: 19,
-    fontWeight: '800',
+  listTitle: {
+    color: '#1A1F36', fontSize: 17, fontWeight: '700',
   },
-  listMetaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#edf4f1',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  listCountPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#E8EDFF', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6,
   },
-  listMetaPillText: {
-    color: '#10342d',
-    fontSize: 13,
-    fontWeight: '800',
+  listCountText: {
+    color: '#4A6CF7', fontSize: 13, fontWeight: '800',
   },
+
+  // Card de tarea
   card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#d9e5e0',
-    marginBottom: 12,
+    flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 20,
+    marginHorizontal: 20, marginBottom: 12, overflow: 'hidden',
+    shadowColor: '#4A6CF7', shadowOpacity: 0.09,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
-  cardHeader: {
-    flexDirection: 'row',
+  cardStripe: { width: 4 },
+  cardBody:   { flex: 1, padding: 16, gap: 6 },
+  cardTopRow: {
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
   },
-  titleBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  cardBadge: {
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3,
   },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 10,
-    marginTop: 1,
+  cardBadgeText: { fontSize: 11, fontWeight: '700' },
+  cardTime:   { color: '#8F95B2', fontSize: 12, fontWeight: '500' },
+  cardTitle:  { color: '#1A1F36', fontSize: 15, fontWeight: '800' },
+  cardDesc:   { color: '#8F95B2', fontSize: 13, lineHeight: 19 },
+  cardFooter: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginTop: 4,
   },
-  dotPending: {
-    backgroundColor: '#c48a21',
+  cardLocation: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#F1F3FF', borderRadius: 999,
+    paddingHorizontal: 9, paddingVertical: 4, flexShrink: 1,
   },
-  dotProgress: {
-    backgroundColor: '#1676a1',
+  cardLocationText: {
+    color: '#8F95B2', fontSize: 11, fontWeight: '600', flexShrink: 1,
   },
-  dotCompleted: {
-    backgroundColor: '#1f9b66',
+  cardAction: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#E8EDFF', borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 5,
   },
-  cardTitle: {
-    flex: 1,
-    color: '#16211e',
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  statusBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  badgePending: {
-    backgroundColor: '#f5ebd8',
-  },
-  badgeTextPending: {
-    color: '#936b20',
-  },
-  badgeProgress: {
-    backgroundColor: '#e3eff6',
-  },
-  badgeTextProgress: {
-    color: '#14688f',
-  },
-  badgeCompleted: {
-    backgroundColor: '#e5f4ec',
-  },
-  badgeTextCompleted: {
-    color: '#1b8659',
-  },
-  cardDescription: {
-    color: '#64746f',
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  metaGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  metaBlock: {
-    flex: 1,
-    backgroundColor: '#f6f9f7',
-    borderRadius: 16,
-    padding: 12,
-  },
-  metaLabel: {
-    color: '#72827d',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: 0.8,
-  },
-  metaValue: {
-    color: '#16211e',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#eef3f0',
-  },
-  footerInfo: {
-    color: '#64746f',
-    fontSize: 13,
-  },
-  footerAction: {
-    color: '#10342d',
-    fontSize: 13,
-    fontWeight: '800',
-  },
+  cardActionText: { color: '#4A6CF7', fontSize: 12, fontWeight: '700' },
+
+  // Empty state
   emptyCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#d9e5e0',
-    marginTop: 8,
+    marginHorizontal: 20, marginTop: 16,
+    backgroundColor: '#ffffff', borderRadius: 20,
+    paddingVertical: 40, paddingHorizontal: 24,
+    alignItems: 'center', gap: 12,
+    shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  emptyIconBox: {
+    width: 72, height: 72, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden', marginBottom: 4,
+    shadowColor: '#2D3FE0', shadowOpacity: 0.25,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+  },
+  emptyIconDeco: {
+    position: 'absolute', top: -16, right: -16,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   emptyTitle: {
-    color: '#16211e',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 6,
+    color: '#1A1F36', fontSize: 16, fontWeight: '800', textAlign: 'center',
   },
-  emptyText: {
-    color: '#687974',
-    fontSize: 14,
-    lineHeight: 21,
+  emptyBody: {
+    color: '#8F95B2', fontSize: 13, lineHeight: 19,
+    textAlign: 'center', maxWidth: 240,
   },
 });

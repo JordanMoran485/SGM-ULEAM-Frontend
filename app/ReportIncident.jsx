@@ -1,25 +1,17 @@
 import React, { useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+    Alert, Image, ScrollView, StyleSheet, Text,
+    TextInput, TouchableOpacity, View,
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
-import { Button, HelperText, TextInput } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createIncident } from '../src/services/incidents';
 import { useAppContext } from '../src/context/AppContext';
 
-const customTheme = {
-    colors: {
-        primary: '#0f2f29',
-        outline: '#cad7d2',
-        onSurfaceVariant: '#64746f',
-        surface: '#ffffff',
-    },
-};
-
 function normalizePickedAsset(asset) {
-    if (!asset?.uri) {
-        return null;
-    }
-
+    if (!asset?.uri) return null;
     return {
         uri: asset.uri,
         fileName: asset.fileName || asset.uri.split('/').pop() || 'incident-photo.jpg',
@@ -27,102 +19,94 @@ function normalizePickedAsset(asset) {
     };
 }
 
+function FieldInput({ label, value, onChangeText, placeholder, multiline, error, focused, onFocus, onBlur }) {
+    return (
+        <View style={styles.fieldWrap}>
+            <Text style={styles.fieldLabel}>{label}</Text>
+            <TextInput
+                style={[
+                    styles.input,
+                    multiline && styles.inputMultiline,
+                    focused && styles.inputFocused,
+                    error && styles.inputError,
+                ]}
+                value={value}
+                onChangeText={onChangeText}
+                placeholder={placeholder}
+                placeholderTextColor="#C4C9E2"
+                multiline={multiline}
+                numberOfLines={multiline ? 5 : 1}
+                textAlignVertical={multiline ? 'top' : 'center'}
+                onFocus={onFocus}
+                onBlur={onBlur}
+            />
+            {!!error && (
+                <View style={styles.errorRow}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={13} color="#F43F5E" />
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            )}
+        </View>
+    );
+}
+
 export default function ReportIncidentScreen() {
     const router = useRouter();
     const { token, refreshIncidents } = useAppContext();
-    const [title, setTitle] = useState('');
-    const [location, setLocation] = useState('');
+
+    const [title, setTitle]           = useState('');
+    const [location, setLocation]     = useState('');
     const [description, setDescription] = useState('');
-    const [photo, setPhoto] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [photo, setPhoto]           = useState(null);
+    const [loading, setLoading]       = useState(false);
+    const [errors, setErrors]         = useState({});
+    const [focused, setFocused]       = useState('');
+
+    const clearError = (field) => setErrors((e) => ({ ...e, [field]: undefined }));
 
     const validate = () => {
-        const nextErrors = {};
-
-        if (!title.trim()) {
-            nextErrors.title = 'El asunto es obligatorio.';
-        }
-
-        if (!location.trim()) {
-            nextErrors.location = 'La ubicación es obligatoria.';
-        }
-
-        if (!description.trim()) {
-            nextErrors.description = 'La descripción es obligatoria.';
-        }
-
-        if (!photo) {
-            nextErrors.photo = 'Debes adjuntar una foto de la incidencia.';
-        }
-
-        setErrors(nextErrors);
-        return Object.keys(nextErrors).length === 0;
-    };
-
-    const requestCameraPermission = async () => {
-        const permission = await ImagePicker.requestCameraPermissionsAsync();
-        if (!permission.granted) {
-            Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara para tomar la foto.');
-            return false;
-        }
-        return true;
-    };
-
-    const requestLibraryPermission = async () => {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-            Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos para adjuntar evidencia.');
-            return false;
-        }
-        return true;
+        const next = {};
+        if (!title.trim())       next.title       = 'El asunto es obligatorio.';
+        if (!location.trim())    next.location    = 'La ubicación es obligatoria.';
+        if (!description.trim()) next.description = 'La descripción es obligatoria.';
+        if (!photo)              next.photo       = 'Debes adjuntar una foto de la incidencia.';
+        setErrors(next);
+        return Object.keys(next).length === 0;
     };
 
     const handleTakePhoto = async () => {
-        const hasPermission = await requestCameraPermission();
-        if (!hasPermission) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara.');
             return;
         }
-
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.75,
+            mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.75,
         });
-
         if (!result.canceled && result.assets?.[0]) {
             setPhoto(normalizePickedAsset(result.assets[0]));
-            setErrors((current) => ({ ...current, photo: undefined }));
+            clearError('photo');
         }
     };
 
     const handlePickFromLibrary = async () => {
-        const hasPermission = await requestLibraryPermission();
-        if (!hasPermission) {
+        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos.');
             return;
         }
-
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.75,
+            mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.75,
         });
-
         if (!result.canceled && result.assets?.[0]) {
             setPhoto(normalizePickedAsset(result.assets[0]));
-            setErrors((current) => ({ ...current, photo: undefined }));
+            clearError('photo');
         }
     };
 
     const handleSubmit = async () => {
-        if (!validate()) {
-            return;
-        }
-
+        if (!validate()) return;
         setLoading(true);
-
         try {
             await createIncident(token, {
                 title: title.trim(),
@@ -130,141 +114,170 @@ export default function ReportIncidentScreen() {
                 description: description.trim(),
                 image: photo,
             });
-
             await refreshIncidents();
             Alert.alert('Incidencia reportada', 'La incidencia fue enviada correctamente.');
             router.replace('/(tabs)/Incidents');
         } catch (error) {
-            console.error('Error al reportar incidencia:', error);
-            Alert.alert(
-                'No se pudo reportar la incidencia',
-                error?.message || 'El servidor rechazó la solicitud.'
-            );
+            Alert.alert('No se pudo reportar', error?.message || 'El servidor rechazó la solicitud.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Stack.Screen options={{ title: 'Reportar incidencia', headerShown: false }} />
+        <ScrollView
+            style={styles.container}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+        >
+            <Stack.Screen options={{ headerShown: false }} />
 
-            <View style={styles.header}>
-                <Text style={styles.eyebrow}>Nuevo reporte</Text>
-                <Text style={styles.title}>Registrar incidencia</Text>
-                <Text style={styles.subtitle}>
-                    Describe el problema, indica la ubicación y toma una foto para dejar evidencia.
-                </Text>
-            </View>
+            {/* ── Hero ── */}
+            <LinearGradient
+                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.hero}
+            >
+                <View style={styles.heroDeco1} />
+                <View style={styles.heroDeco2} />
 
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.backBtn}
+                    onPress={() => router.back()}
+                >
+                    <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+                </TouchableOpacity>
+
+                <Text style={styles.heroEyebrow}>NUEVO REPORTE</Text>
+                <Text style={styles.heroTitle}>Registrar incidencia</Text>
+            </LinearGradient>
+
+            {/* ── Formulario ── */}
             <View style={styles.card}>
-                <View style={styles.photoPanel}>
+
+                {/* Foto */}
+                <View style={styles.photoSection}>
+                    <Text style={styles.fieldLabel}>Foto de evidencia</Text>
+
                     {photo ? (
                         <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
                     ) : (
-                        <View style={styles.photoFallback}>
-                            <Text style={styles.photoFallbackEyebrow}>Evidencia requerida</Text>
-                            <Text style={styles.photoFallbackTitle}>Toma una foto del incidente</Text>
-                            <Text style={styles.photoFallbackText}>
-                                Esto ayuda a validar el reporte y a asignar mejor la tarea al equipo.
-                            </Text>
+                        <LinearGradient
+                            colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={[styles.photoPlaceholder, errors.photo && styles.photoPlaceholderError]}
+                        >
+                            <View style={styles.photoDecoDot} />
+                            <View style={[styles.photoIconBox]}>
+                                <MaterialCommunityIcons name="camera-outline" size={32} color="rgba(255,255,255,0.9)" />
+                            </View>
+                            <Text style={styles.photoPlaceholderText}>Sin evidencia adjunta</Text>
+                        </LinearGradient>
+                    )}
+
+                    {!!errors.photo && (
+                        <View style={styles.errorRow}>
+                            <MaterialCommunityIcons name="alert-circle-outline" size={13} color="#F43F5E" />
+                            <Text style={styles.errorText}>{errors.photo}</Text>
                         </View>
                     )}
+
+                    <View style={styles.photoActions}>
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            style={[styles.photoBtn, { overflow: 'hidden' }]}
+                            onPress={handleTakePhoto}
+                        >
+                            <LinearGradient
+                                colors={['#2D3FE0', '#4A6CF7']}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                style={styles.photoBtnGradient}
+                            >
+                                <MaterialCommunityIcons name="camera" size={16} color="#fff" />
+                                <Text style={styles.photoBtnTextPrimary}>
+                                    {photo ? 'Tomar otra' : 'Tomar foto'}
+                                </Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            style={styles.photoBtnSecondary}
+                            onPress={handlePickFromLibrary}
+                        >
+                            <MaterialCommunityIcons name="image-outline" size={16} color="#4A6CF7" />
+                            <Text style={styles.photoBtnTextSecondary}>Galería</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                <View style={styles.photoActions}>
-                    <TouchableOpacity style={styles.photoActionPrimary} onPress={handleTakePhoto}>
-                        <Text style={styles.photoActionPrimaryText}>
-                            {photo ? 'Tomar otra foto' : 'Tomar foto'}
-                        </Text>
-                    </TouchableOpacity>
+                <View style={styles.divider} />
 
-                    <TouchableOpacity style={styles.photoActionSecondary} onPress={handlePickFromLibrary}>
-                        <Text style={styles.photoActionSecondaryText}>Elegir de galería</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* Campos */}
+                <FieldInput
+                    label="Asunto"
+                    value={title}
+                    onChangeText={(v) => { setTitle(v); clearError('title'); }}
+                    placeholder="Ej. Fuga de agua en baño"
+                    error={errors.title}
+                    focused={focused === 'title'}
+                    onFocus={() => setFocused('title')}
+                    onBlur={() => setFocused('')}
+                />
 
-                <HelperText type="error" visible={!!errors.photo}>
-                    {errors.photo}
-                </HelperText>
+                <FieldInput
+                    label="Ubicación"
+                    value={location}
+                    onChangeText={(v) => { setLocation(v); clearError('location'); }}
+                    placeholder="Ej. Edificio A, piso 2"
+                    error={errors.location}
+                    focused={focused === 'location'}
+                    onFocus={() => setFocused('location')}
+                    onBlur={() => setFocused('')}
+                />
 
-                <View style={styles.field}>
-                    <TextInput
-                        label="Asunto"
-                        value={title}
-                        onChangeText={(value) => {
-                            setTitle(value);
-                            setErrors((current) => ({ ...current, title: undefined }));
-                        }}
-                        mode="outlined"
-                        theme={customTheme}
-                        style={styles.input}
-                        textColor="#18201d"
-                        outlineStyle={styles.inputOutline}
-                        error={!!errors.title}
-                    />
-                    <HelperText type="error" visible={!!errors.title}>
-                        {errors.title}
-                    </HelperText>
-                </View>
+                <FieldInput
+                    label="Descripción"
+                    value={description}
+                    onChangeText={(v) => { setDescription(v); clearError('description'); }}
+                    placeholder="Describe el problema con el mayor detalle posible..."
+                    multiline
+                    error={errors.description}
+                    focused={focused === 'description'}
+                    onFocus={() => setFocused('description')}
+                    onBlur={() => setFocused('')}
+                />
 
-                <View style={styles.field}>
-                    <TextInput
-                        label="Ubicación"
-                        value={location}
-                        onChangeText={(value) => {
-                            setLocation(value);
-                            setErrors((current) => ({ ...current, location: undefined }));
-                        }}
-                        mode="outlined"
-                        theme={customTheme}
-                        style={styles.input}
-                        textColor="#18201d"
-                        outlineStyle={styles.inputOutline}
-                        error={!!errors.location}
-                    />
-                    <HelperText type="error" visible={!!errors.location}>
-                        {errors.location}
-                    </HelperText>
-                </View>
-
-                <View style={styles.field}>
-                    <TextInput
-                        label="Descripción"
-                        value={description}
-                        onChangeText={(value) => {
-                            setDescription(value);
-                            setErrors((current) => ({ ...current, description: undefined }));
-                        }}
-                        mode="outlined"
-                        theme={customTheme}
-                        style={[styles.input, styles.multilineInput]}
-                        textColor="#18201d"
-                        outlineStyle={styles.inputOutline}
-                        multiline
-                        numberOfLines={5}
-                        error={!!errors.description}
-                    />
-                    <HelperText type="error" visible={!!errors.description}>
-                        {errors.description}
-                    </HelperText>
-                </View>
-
-                <Button
-                    mode="contained"
+                {/* Botón enviar */}
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={[styles.submitBtn, loading && { opacity: 0.7 }]}
                     onPress={handleSubmit}
-                    style={styles.primaryButton}
-                    buttonColor="#0f2f29"
-                    textColor="#f4f7f5"
-                    loading={loading}
                     disabled={loading}
-                    contentStyle={styles.primaryButtonContent}
                 >
-                    Enviar incidencia
-                </Button>
+                    <LinearGradient
+                        colors={['#2D3FE0', '#4A6CF7']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={styles.submitBtnGradient}
+                    >
+                        {loading
+                            ? <MaterialCommunityIcons name="loading" size={20} color="#fff" />
+                            : <MaterialCommunityIcons name="send-outline" size={18} color="#fff" />
+                        }
+                        <Text style={styles.submitBtnText}>
+                            {loading ? 'Enviando...' : 'Enviar incidencia'}
+                        </Text>
+                    </LinearGradient>
+                </TouchableOpacity>
 
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.back()}>
-                    <Text style={styles.secondaryButtonText}>Cancelar</Text>
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.cancelBtn}
+                    onPress={() => router.back()}
+                >
+                    <Text style={styles.cancelBtnText}>Cancelar</Text>
                 </TouchableOpacity>
             </View>
         </ScrollView>
@@ -272,142 +285,146 @@ export default function ReportIncidentScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f3f6f4',
-    },
-    content: {
-        padding: 20,
-        paddingBottom: 40,
-    },
-    header: {
-        marginTop: 54,
-        marginBottom: 18,
-    },
-    eyebrow: {
-        color: '#6b7d78',
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 1.1,
-        marginBottom: 8,
-    },
-    title: {
-        color: '#16211e',
-        fontSize: 30,
-        fontWeight: '800',
-        marginBottom: 8,
-    },
-    subtitle: {
-        color: '#64746f',
-        fontSize: 15,
-        lineHeight: 22,
-    },
-    card: {
-        backgroundColor: '#ffffff',
-        borderRadius: 28,
-        padding: 18,
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
-    },
-    photoPanel: {
-        minHeight: 240,
-        borderRadius: 24,
+    container: { flex: 1, backgroundColor: '#EEF2FF' },
+    content:   { paddingBottom: 48 },
+
+    // Hero
+    hero: {
+        paddingTop: 56, paddingBottom: 28, paddingHorizontal: 24,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#d3e4ef',
-        backgroundColor: '#eef5f9',
-        marginBottom: 14,
     },
+    heroDeco1: {
+        position: 'absolute', top: -50, right: -40,
+        width: 200, height: 200, borderRadius: 100,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    heroDeco2: {
+        position: 'absolute', bottom: -20, left: -30,
+        width: 120, height: 120, borderRadius: 60,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    backBtn: {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center', justifyContent: 'center',
+        marginBottom: 16,
+    },
+    heroEyebrow: {
+        color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 1.1, marginBottom: 6,
+    },
+    heroTitle: {
+        color: '#ffffff', fontSize: 28, fontWeight: '800',
+    },
+
+    // Card principal
+    card: {
+        backgroundColor: '#ffffff', borderRadius: 24,
+        marginHorizontal: 20, marginTop: 20,
+        padding: 20,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.10,
+        shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    },
+
+    // Foto
+    photoSection: { gap: 10, marginBottom: 4 },
     photoPreview: {
-        width: '100%',
-        height: 240,
+        width: '100%', height: 200, borderRadius: 16,
     },
-    photoFallback: {
-        minHeight: 240,
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: 22,
+    photoPlaceholder: {
+        height: 160, borderRadius: 16, overflow: 'hidden',
+        alignItems: 'center', justifyContent: 'center', gap: 8,
     },
-    photoFallbackEyebrow: {
-        color: '#6b7d78',
-        fontSize: 12,
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        marginBottom: 10,
+    photoPlaceholderError: {
+        borderWidth: 1.5, borderColor: '#F43F5E',
     },
-    photoFallbackTitle: {
-        color: '#16211e',
-        fontSize: 22,
-        fontWeight: '800',
-        marginBottom: 8,
+    photoDecoDot: {
+        position: 'absolute', top: -20, right: -20,
+        width: 80, height: 80, borderRadius: 40,
+        backgroundColor: 'rgba(255,255,255,0.10)',
     },
-    photoFallbackText: {
-        color: '#64746f',
-        fontSize: 14,
-        lineHeight: 21,
-        maxWidth: 260,
+    photoIconBox: {
+        width: 60, height: 60, borderRadius: 30,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    photoPlaceholderText: {
+        color: 'rgba(255,255,255,0.70)', fontSize: 13, fontWeight: '600',
     },
     photoActions: {
-        flexDirection: 'row',
-        gap: 10,
-        marginBottom: 4,
+        flexDirection: 'row', gap: 10,
     },
-    photoActionPrimary: {
-        flex: 1,
-        backgroundColor: '#10342d',
-        borderRadius: 16,
-        paddingVertical: 14,
-        alignItems: 'center',
+    photoBtn: {
+        flex: 1, borderRadius: 14,
     },
-    photoActionPrimaryText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '800',
+    photoBtnGradient: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 7, paddingVertical: 13, borderRadius: 14,
     },
-    photoActionSecondary: {
-        flex: 1,
-        backgroundColor: '#f3f6f4',
-        borderRadius: 16,
-        paddingVertical: 14,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#d9e5e0',
+    photoBtnTextPrimary: {
+        color: '#ffffff', fontSize: 14, fontWeight: '700',
     },
-    photoActionSecondaryText: {
-        color: '#17342d',
-        fontSize: 14,
-        fontWeight: '800',
+    photoBtnSecondary: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 7, paddingVertical: 13, borderRadius: 14,
+        backgroundColor: '#E8EDFF',
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
     },
-    field: {
-        marginTop: 8,
+    photoBtnTextSecondary: {
+        color: '#4A6CF7', fontSize: 14, fontWeight: '700',
+    },
+
+    divider: { height: 1, backgroundColor: '#F1F3FF', marginVertical: 20 },
+
+    // Inputs
+    fieldWrap: { marginBottom: 16, gap: 6 },
+    fieldLabel: {
+        color: '#8F95B2', fontSize: 11, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.6,
     },
     input: {
+        backgroundColor: '#F8F9FF', borderRadius: 14,
+        borderWidth: 1.5, borderColor: '#E8EDFF',
+        paddingHorizontal: 16, paddingVertical: 13,
+        fontSize: 15, color: '#1A1F36', fontWeight: '500',
+    },
+    inputMultiline: {
+        minHeight: 120, paddingTop: 13,
+    },
+    inputFocused: {
+        borderColor: '#4A6CF7',
         backgroundColor: '#ffffff',
     },
-    inputOutline: {
-        borderRadius: 18,
-        borderColor: '#cad7d2',
+    inputError: {
+        borderColor: '#F43F5E',
     },
-    multilineInput: {
-        minHeight: 126,
+    errorRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
     },
-    primaryButton: {
-        borderRadius: 18,
-        marginTop: 12,
+    errorText: {
+        color: '#F43F5E', fontSize: 12, fontWeight: '600',
     },
-    primaryButtonContent: {
-        minHeight: 54,
+
+    // Botón enviar
+    submitBtn: {
+        borderRadius: 20, overflow: 'hidden', marginTop: 8,
+        shadowColor: '#2D3FE0', shadowOpacity: 0.25,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
     },
-    secondaryButton: {
-        alignItems: 'center',
-        paddingVertical: 14,
-        marginTop: 6,
+    submitBtnGradient: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 9, paddingVertical: 16,
     },
-    secondaryButtonText: {
-        color: '#64746f',
-        fontSize: 14,
-        fontWeight: '700',
+    submitBtnText: {
+        color: '#ffffff', fontSize: 15, fontWeight: '700',
+    },
+
+    // Cancelar
+    cancelBtn: {
+        alignItems: 'center', paddingVertical: 14, marginTop: 4,
+    },
+    cancelBtnText: {
+        color: '#8F95B2', fontSize: 14, fontWeight: '600',
     },
 });
