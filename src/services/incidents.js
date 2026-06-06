@@ -123,6 +123,7 @@ function normalizeIncident(rawIncident) {
     tasksCount: firstDefined(rawIncident?.tasks_count, tasks.length, 0),
     latestTask,
     priority: firstDefined(rawIncident?.priority, latestTask?.priority, 'Media'),
+    category: firstDefined(rawIncident?.category, ''),
     dueDate: latestTask?.dueDate || null,
     userId: firstDefined(rawIncident?.user_id, rawIncident?.userId),
     reporterName: getPersonName(rawIncident?.user, 'Sin reportante'),
@@ -189,6 +190,7 @@ export async function createIncident(token, payload) {
   appendIfPresent(formData, 'title', payload?.title);
   appendIfPresent(formData, 'description', payload?.description);
   appendIfPresent(formData, 'location', payload?.location);
+  appendIfPresent(formData, 'category', payload?.category);
   appendIfPresent(formData, 'status', payload?.status || 'pending');
 
   const uploadFile = buildUploadFile(payload?.image);

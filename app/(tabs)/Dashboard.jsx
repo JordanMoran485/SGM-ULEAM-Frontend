@@ -35,6 +35,20 @@ function getStatusConfig(status) {
     return { stripe: '#F59E0B' };
 }
 
+const ACTIVITY_CATEGORIES = [
+    { label: 'Fontanería',    icon: 'pipe-wrench',    iconBg: '#FEE2E2', iconColor: '#EF4444' },
+    { label: 'Electricidad',  icon: 'lightning-bolt', iconBg: '#FEF3C7', iconColor: '#F59E0B' },
+    { label: 'Limpieza',      icon: 'broom',          iconBg: '#DCFCE7', iconColor: '#22C55E' },
+    { label: 'Mantenimiento', icon: 'wrench',         iconBg: '#E8EDFF', iconColor: '#4A6CF7' },
+];
+
+const ACTIVITY_PRIORITIES = [
+    { label: 'Urgente',     bg: '#FEE2E2', color: '#EF4444' },
+    { label: 'Normal',      bg: '#E8EDFF', color: '#4A6CF7' },
+    { label: 'En revisión', bg: '#FEF3C7', color: '#F59E0B' },
+    { label: 'Urgente',     bg: '#FEE2E2', color: '#EF4444' },
+];
+
 // ─── sub-components ─────────────────────────────────────────────────────────
 
 function SegmentedBar({ pending, inProgress, completed }) {
@@ -313,7 +327,16 @@ export default function Dashboard() {
                                                 styles.chartBar,
                                                 { height: barH },
                                                 isToday ? styles.chartBarToday : styles.chartBarIdle,
-                                            ]} />
+                                            ]}>
+                                                {day.count > 0 && barH >= 24 && (
+                                                    <Text style={[
+                                                        styles.chartBarCount,
+                                                        { color: isToday ? '#ffffff' : '#4A6CF7' },
+                                                    ]}>
+                                                        {day.count}
+                                                    </Text>
+                                                )}
+                                            </View>
                                         </View>
                                         <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>
                                             {day.label}
@@ -362,35 +385,42 @@ export default function Dashboard() {
                         <Text style={styles.emptyBody}>Las incidencias que registres aparecerán aquí.</Text>
                     </View>
                 ) : (
-                    <View style={styles.timelineCard}>
+                    <>
                         {recentActivity.map((item, index) => {
-                            const sc = getStatusConfig(item.status);
-                            const isLast = index === recentActivity.length - 1;
+                            const cat  = ACTIVITY_CATEGORIES[index % ACTIVITY_CATEGORIES.length];
+                            const prio = ACTIVITY_PRIORITIES[index % ACTIVITY_PRIORITIES.length];
                             return (
                                 <TouchableOpacity
                                     key={String(item.id)}
                                     activeOpacity={0.85}
+                                    style={styles.activityCard}
                                     onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'incident' } })}
                                 >
-                                    <View style={styles.timelineRow}>
-                                        <View style={styles.timelineLeft}>
-                                            <View style={[styles.timelineDot, { backgroundColor: sc.stripe }]} />
-                                            {!isLast && <View style={styles.timelineLine} />}
+                                    <View style={[styles.activityIconBox, { backgroundColor: cat.iconBg }]}>
+                                        <MaterialCommunityIcons name={cat.icon} size={22} color={cat.iconColor} />
+                                    </View>
+                                    <View style={styles.activityInfo}>
+                                        <View style={styles.activityTopRow}>
+                                            <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
+                                            <Text style={styles.activityTime}>{formatRelative(item.createdAt)}</Text>
                                         </View>
-                                        <View style={[styles.timelineBody, !isLast && styles.timelineBodyBorder]}>
-                                            <View style={styles.timelineTopRow}>
-                                                <Text style={styles.timelineTitle} numberOfLines={1}>{item.title}</Text>
-                                                <Text style={styles.timelineTime}>{formatRelative(item.createdAt)}</Text>
+                                        {item.location && (
+                                            <Text style={styles.activityLocation} numberOfLines={1}>{item.location}</Text>
+                                        )}
+                                        <View style={styles.activityTags}>
+                                            <View style={[styles.activityTag, { backgroundColor: prio.bg }]}>
+                                                <Text style={[styles.activityTagText, { color: prio.color }]}>{prio.label}</Text>
                                             </View>
-                                            {item.location && (
-                                                <Text style={styles.timelineMeta} numberOfLines={1}>{item.location}</Text>
-                                            )}
+                                            <View style={[styles.activityTag, { backgroundColor: cat.iconBg }]}>
+                                                <Text style={[styles.activityTagText, { color: cat.iconColor }]}>{cat.label}</Text>
+                                            </View>
                                         </View>
                                     </View>
+                                    <MaterialCommunityIcons name="chevron-right" size={22} color="#C7D2FE" />
                                 </TouchableOpacity>
                             );
                         })}
-                    </View>
+                    </>
                 )}
             </View>
         </ScrollView>
@@ -541,6 +571,10 @@ const styles = StyleSheet.create({
     },
     chartBar: {
         width: '100%', borderTopLeftRadius: 6, borderTopRightRadius: 6,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    chartBarCount: {
+        fontSize: 10, fontWeight: '800',
     },
     chartBarIdle: {
         backgroundColor: '#DBEAFE',
@@ -611,4 +645,40 @@ const styles = StyleSheet.create({
     timelineTitle: { flex: 1, color: '#1A1F36', fontSize: 14, fontWeight: '700' },
     timelineTime:  { color: '#8F95B2', fontSize: 11, fontWeight: '500', flexShrink: 0 },
     timelineMeta:  { color: '#8F95B2', fontSize: 12, fontWeight: '500' },
+
+    // Activity cards
+    activityCard: {
+        flexDirection: 'row', alignItems: 'center', gap: 14,
+        backgroundColor: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08, shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    },
+    activityIconBox: {
+        width: 48, height: 48, borderRadius: 14,
+        alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    activityInfo: {
+        flex: 1, minWidth: 0, gap: 4,
+    },
+    activityTopRow: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    },
+    activityTitle: {
+        flex: 1, color: '#1A1F36', fontSize: 14, fontWeight: '800',
+    },
+    activityTime: {
+        color: '#8F95B2', fontSize: 10, fontWeight: '500', marginLeft: 8, flexShrink: 0,
+    },
+    activityLocation: {
+        color: '#8F95B2', fontSize: 12, fontWeight: '500',
+    },
+    activityTags: {
+        flexDirection: 'row', gap: 6, marginTop: 2,
+    },
+    activityTag: {
+        borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
+    },
+    activityTagText: {
+        fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
+    },
 });

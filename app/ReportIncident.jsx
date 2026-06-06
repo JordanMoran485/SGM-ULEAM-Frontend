@@ -19,6 +19,16 @@ function normalizePickedAsset(asset) {
     };
 }
 
+const LOCATION_TYPES = [
+    { key: 'bathroom',  label: 'Baño',       icon: 'toilet' },
+    { key: 'classroom', label: 'Aula',       icon: 'school-outline' },
+    { key: 'hallway',   label: 'Pasillo',    icon: 'door-open' },
+    { key: 'exterior',  label: 'Exteriores', icon: 'tree-outline' },
+    { key: 'stairs',    label: 'Escaleras',  icon: 'stairs' },
+];
+
+const CATEGORIES = ['Limpieza', 'Mantenimiento', 'Seguridad'];
+
 function FieldInput({ label, value, onChangeText, placeholder, multiline, error, focused, onFocus, onBlur }) {
     return (
         <View style={styles.fieldWrap}>
@@ -61,14 +71,16 @@ export default function ReportIncidentScreen() {
     const [loading, setLoading]       = useState(false);
     const [errors, setErrors]         = useState({});
     const [focused, setFocused]       = useState('');
+    const [locationType, setLocationType] = useState(null);
+    const [category, setCategory]         = useState(null);
 
     const clearError = (field) => setErrors((e) => ({ ...e, [field]: undefined }));
 
     const validate = () => {
         const next = {};
-        if (!title.trim())       next.title       = 'El asunto es obligatorio.';
-        if (!location.trim())    next.location    = 'La ubicación es obligatoria.';
-        if (!description.trim()) next.description = 'La descripción es obligatoria.';
+        if (!title.trim())                    next.title       = 'El asunto es obligatorio.';
+        if (!location.trim() && !locationType) next.location  = 'La ubicación es obligatoria.';
+        if (!description.trim())              next.description = 'La descripción es obligatoria.';
         if (!photo)              next.photo       = 'Debes adjuntar una foto de la incidencia.';
         setErrors(next);
         return Object.keys(next).length === 0;
@@ -108,10 +120,14 @@ export default function ReportIncidentScreen() {
         if (!validate()) return;
         setLoading(true);
         try {
+            const locationLabel = LOCATION_TYPES.find((lt) => lt.key === locationType)?.label;
+            const locationFull  = [locationLabel, location.trim() || null].filter(Boolean).join(' - ');
+
             await createIncident(token, {
                 title: title.trim(),
-                location: location.trim(),
+                location: locationFull,
                 description: description.trim(),
+                category: category || undefined,
                 image: photo,
             });
             await refreshIncidents();
@@ -237,6 +253,63 @@ export default function ReportIncidentScreen() {
                     onFocus={() => setFocused('location')}
                     onBlur={() => setFocused('')}
                 />
+
+                <View style={styles.divider} />
+
+                {/* ── Tipo de espacio ── */}
+                <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionBlockLabel}>Tipo de espacio</Text>
+                    <View style={styles.locationGrid}>
+                        {LOCATION_TYPES.map((lt) => {
+                            const active = locationType === lt.key;
+                            return (
+                                <TouchableOpacity
+                                    key={lt.key}
+                                    activeOpacity={0.85}
+                                    style={styles.locationItem}
+                                    onPress={() => setLocationType(active ? null : lt.key)}
+                                >
+                                    <View style={[styles.locationIconBox, active && styles.locationIconBoxActive]}>
+                                        <MaterialCommunityIcons
+                                            name={lt.icon}
+                                            size={28}
+                                            color={active ? '#2D3FE0' : '#8F95B2'}
+                                        />
+                                    </View>
+                                    <Text style={[styles.locationLabel, active && styles.locationLabelActive]}>
+                                        {lt.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* ── Categoría ── */}
+                <View style={styles.sectionBlock}>
+                    <Text style={styles.sectionBlockLabel}>Categoría</Text>
+                    <View style={styles.categoryRow}>
+                        {CATEGORIES.map((cat) => {
+                            const active = category === cat;
+                            return (
+                                <TouchableOpacity
+                                    key={cat}
+                                    activeOpacity={0.85}
+                                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                                    onPress={() => setCategory(active ? null : cat)}
+                                >
+                                    <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                                        {cat}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <View style={styles.divider} />
 
                 <FieldInput
                     label="Descripción"
@@ -426,5 +499,50 @@ const styles = StyleSheet.create({
     },
     cancelBtnText: {
         color: '#8F95B2', fontSize: 14, fontWeight: '600',
+    },
+
+    // Tipo de espacio
+    sectionBlock: { gap: 16, marginBottom: 4 },
+    sectionBlockLabel: {
+        color: '#8F95B2', fontSize: 10, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.8,
+    },
+    locationGrid: {
+        flexDirection: 'row', flexWrap: 'wrap', gap: 16,
+    },
+    locationItem: {
+        width: '45%', alignItems: 'center', gap: 10,
+    },
+    locationIconBox: {
+        width: 56, height: 56, borderRadius: 16,
+        backgroundColor: '#F1F3FF',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    locationIconBoxActive: {
+        backgroundColor: '#E8EDFF',
+    },
+    locationLabel: {
+        color: '#8F95B2', fontSize: 13, fontWeight: '500',
+    },
+    locationLabelActive: {
+        color: '#2D3FE0', fontWeight: '700',
+    },
+
+    // Categoría
+    categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    categoryChip: {
+        paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16,
+        backgroundColor: '#F1F3FF',
+        borderWidth: 1, borderColor: '#E8EDFF',
+    },
+    categoryChipActive: {
+        backgroundColor: '#E8EDFF',
+        borderColor: '#C7D2FE',
+    },
+    categoryChipText: {
+        color: '#1A1F36', fontSize: 14, fontWeight: '500',
+    },
+    categoryChipTextActive: {
+        color: '#2D3FE0', fontWeight: '700',
     },
 });

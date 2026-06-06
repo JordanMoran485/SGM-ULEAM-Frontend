@@ -19,6 +19,13 @@ function getStatusConfig(status) {
   return { stripe: '#F59E0B', bg: '#FEF3C7', color: '#D97706', label: 'Pendiente' };
 }
 
+const TASK_CATEGORIES = [
+  { label: 'Limpieza',      icon: 'broom',          iconBg: '#DCFCE7', iconColor: '#22C55E' },
+  { label: 'Mantenimiento', icon: 'wrench',         iconBg: '#E8EDFF', iconColor: '#4A6CF7' },
+  { label: 'Fontanería',    icon: 'pipe-wrench',    iconBg: '#FEE2E2', iconColor: '#EF4444' },
+  { label: 'Electricidad',  icon: 'lightning-bolt', iconBg: '#FEF3C7', iconColor: '#F59E0B' },
+];
+
 function firstRole(user) {
   if (Array.isArray(user?.roles) && user.roles[0]?.name) return user.roles[0].name;
   return user?.role || user?.cargo || null;
@@ -176,46 +183,36 @@ export default function TasksScreen() {
           </View>
         </View>
       }
-      renderItem={({ item }) => {
-        const sc = getStatusConfig(item.status);
+      renderItem={({ item, index }) => {
+        const sc  = getStatusConfig(item.status);
+        const cat = TASK_CATEGORIES[index % TASK_CATEGORIES.length];
         return (
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.card}
             onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'task' } })}
           >
-            <View style={[styles.cardStripe, { backgroundColor: sc.stripe }]} />
-            <View style={styles.cardBody}>
-              {/* Fila superior: badge + timestamp */}
+            <View style={[styles.cardIconBox, { backgroundColor: cat.iconBg }]}>
+              <MaterialCommunityIcons name={cat.icon} size={22} color={cat.iconColor} />
+            </View>
+            <View style={styles.cardInfo}>
               <View style={styles.cardTopRow}>
-                <View style={[styles.cardBadge, { backgroundColor: sc.bg }]}>
-                  <Text style={[styles.cardBadgeText, { color: sc.color }]}>{sc.label}</Text>
-                </View>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.cardTime}>{formatTaskDate(item)}</Text>
               </View>
-
-              {/* Título */}
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-
-              {/* Descripción */}
-              <Text style={styles.cardDesc} numberOfLines={2}>
-                {item.description || 'Sin descripción registrada.'}
-              </Text>
-
-              {/* Footer: ubicación + acción */}
-              <View style={styles.cardFooter}>
-                <View style={styles.cardLocation}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
-                  <Text style={styles.cardLocationText} numberOfLines={1}>
-                    {item.location || 'Sin ubicación'}
-                  </Text>
+              {item.location && (
+                <Text style={styles.cardLocationText} numberOfLines={1}>{item.location}</Text>
+              )}
+              <View style={styles.cardTags}>
+                <View style={[styles.cardTag, { backgroundColor: sc.bg }]}>
+                  <Text style={[styles.cardTagText, { color: sc.color }]}>{sc.label}</Text>
                 </View>
-                <View style={styles.cardAction}>
-                  <Text style={styles.cardActionText}>Ver detalle</Text>
-                  <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
+                <View style={[styles.cardTag, { backgroundColor: cat.iconBg }]}>
+                  <Text style={[styles.cardTagText, { color: cat.iconColor }]}>{cat.label}</Text>
                 </View>
               </View>
             </View>
+            <MaterialCommunityIcons name="chevron-right" size={22} color="#C7D2FE" />
           </TouchableOpacity>
         );
       }}
@@ -330,42 +327,36 @@ const styles = StyleSheet.create({
 
   // Card de tarea
   card: {
-    flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 20,
-    marginHorizontal: 20, marginBottom: 12, overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#ffffff', borderRadius: 20, padding: 16,
+    marginHorizontal: 20, marginBottom: 12,
     shadowColor: '#4A6CF7', shadowOpacity: 0.09,
     shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
   },
-  cardStripe: { width: 4 },
-  cardBody:   { flex: 1, padding: 16, gap: 6 },
+  cardIconBox: {
+    width: 48, height: 48, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  cardInfo: {
+    flex: 1, minWidth: 0, gap: 4,
+  },
   cardTopRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
   },
-  cardBadge: {
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3,
-  },
-  cardBadgeText: { fontSize: 11, fontWeight: '700' },
-  cardTime:   { color: '#8F95B2', fontSize: 12, fontWeight: '500' },
-  cardTitle:  { color: '#1A1F36', fontSize: 15, fontWeight: '800' },
-  cardDesc:   { color: '#8F95B2', fontSize: 13, lineHeight: 19 },
-  cardFooter: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginTop: 4,
-  },
-  cardLocation: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F1F3FF', borderRadius: 999,
-    paddingHorizontal: 9, paddingVertical: 4, flexShrink: 1,
-  },
+  cardTitle:  { flex: 1, color: '#1A1F36', fontSize: 14, fontWeight: '800' },
+  cardTime:   { color: '#8F95B2', fontSize: 10, fontWeight: '500', marginLeft: 8, flexShrink: 0 },
   cardLocationText: {
-    color: '#8F95B2', fontSize: 11, fontWeight: '600', flexShrink: 1,
+    color: '#8F95B2', fontSize: 12, fontWeight: '500',
   },
-  cardAction: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#E8EDFF', borderRadius: 999,
-    paddingHorizontal: 12, paddingVertical: 5,
+  cardTags: {
+    flexDirection: 'row', gap: 6, marginTop: 2,
   },
-  cardActionText: { color: '#4A6CF7', fontSize: 12, fontWeight: '700' },
+  cardTag: {
+    borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  cardTagText: {
+    fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
+  },
 
   // Empty state
   emptyCard: {

@@ -19,27 +19,39 @@ const FILTERS = [
 function getStatusConfig(status) {
     if (status === "completed") return {
         stripe: "#22C55E",
-        badgeBg: "#F0FDF4",
-        badgeText: "#22C55E",
+        badgeBg: "#DCFCE7", badgeText: "#16A34A",
+        iconBg: "#DCFCE7",  iconColor: "#22C55E",
+        label: "Completada",
     };
     if (status === "in_progress") return {
         stripe: "#4A6CF7",
-        badgeBg: "#E8EDFF",
-        badgeText: "#2D3FE0",
+        badgeBg: "#E8EDFF", badgeText: "#2D3FE0",
+        iconBg: "#E8EDFF",  iconColor: "#4A6CF7",
+        label: "En progreso",
     };
     return {
         stripe: "#F59E0B",
-        badgeBg: "#FFFBEB",
-        badgeText: "#B45309",
+        badgeBg: "#FEF3C7", badgeText: "#D97706",
+        iconBg: "#FEF3C7",  iconColor: "#F59E0B",
+        label: "Pendiente",
     };
 }
 
-function getPriorityConfig(priority) {
-    const p = String(priority || "").toLowerCase();
-    if (p === "alta" || p === "high")   return { bg: "#FFF1F2", text: "#F43F5E" };
-    if (p === "baja" || p === "low")    return { bg: "#F0FDF4", text: "#22C55E" };
-    return { bg: "#E8EDFF", text: "#4A6CF7" };
+function formatRelative(value) {
+    if (!value) return "";
+    const diff = (Date.now() - new Date(value).getTime()) / 1000;
+    if (diff < 60) return "Ahora";
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+    return new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short" }).format(new Date(value));
 }
+
+const INCIDENT_CATEGORIES = [
+    { icon: "pipe-wrench" },
+    { icon: "lightning-bolt" },
+    { icon: "broom" },
+    { icon: "alert-circle-outline" },
+];
 
 function FilterTab({ label, active, onPress }) {
     if (active) {
@@ -197,10 +209,9 @@ export default function IncidentsScreen() {
             refreshing={refreshing}
             onRefresh={refreshScreen}
             ListHeaderComponent={ListHeader}
-            renderItem={({ item }) => {
-                const sc = getStatusConfig(item.status);
-                const pc = getPriorityConfig(item.priority);
-
+            renderItem={({ item, index }) => {
+                const sc  = getStatusConfig(item.status);
+                const cat = INCIDENT_CATEGORIES[index % INCIDENT_CATEGORIES.length];
                 return (
                     <TouchableOpacity
                         activeOpacity={0.85}
@@ -210,56 +221,31 @@ export default function IncidentsScreen() {
                             params: { id: String(item.id), type: "incident" },
                         })}
                     >
-                        {/* Franja lateral de estado */}
                         <View style={[styles.stripe, { backgroundColor: sc.stripe }]} />
-
-                        <View style={styles.cardInner}>
-                            {/* Fila superior: badges + prioridad */}
+                        <View style={[styles.cardIconBox, { backgroundColor: sc.iconBg }]}>
+                            <MaterialCommunityIcons name={cat.icon} size={22} color={sc.iconColor} />
+                        </View>
+                        <View style={styles.cardInfo}>
                             <View style={styles.cardTopRow}>
-                                <View style={[styles.badge, { backgroundColor: sc.badgeBg }]}>
-                                    <Text style={[styles.badgeText, { color: sc.badgeText }]}>
-                                        {item.statusLabel}
-                                    </Text>
+                                <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
+                                <Text style={styles.cardTime}>{formatRelative(item.createdAt)}</Text>
+                            </View>
+                            {item.location && (
+                                <Text style={styles.cardLocation} numberOfLines={1}>{item.location}</Text>
+                            )}
+                            <View style={styles.cardTags}>
+                                <View style={[styles.cardTag, { backgroundColor: sc.badgeBg }]}>
+                                    <Text style={[styles.cardTagText, { color: sc.badgeText }]}>{sc.label}</Text>
                                 </View>
-                                {item.priority && (
-                                    <View style={[styles.badge, { backgroundColor: pc.bg }]}>
-                                        <Text style={[styles.badgeText, { color: pc.text }]}>
-                                            {item.priority}
-                                        </Text>
+                                {item.location && (
+                                    <View style={styles.cardLocationChip}>
+                                        <MaterialCommunityIcons name="map-marker" size={12} color="#8F95B2" />
+                                        <Text style={styles.cardLocationChipText} numberOfLines={1}>{item.location}</Text>
                                     </View>
                                 )}
                             </View>
-
-                            {/* Título */}
-                            <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-
-                            {/* Descripción */}
-                            <Text style={styles.cardDescription} numberOfLines={2}>
-                                {item.description || "Sin descripción registrada."}
-                            </Text>
-
-                            {/* Fila inferior: ubicación + responsable + ver */}
-                            <View style={styles.cardBottomRow}>
-                                <View style={styles.chipsRow}>
-                                    {item.location && (
-                                        <View style={styles.chip}>
-                                            <MaterialCommunityIcons name="map-marker-outline" size={11} color="#8F95B2" />
-                                            <Text style={styles.chipText} numberOfLines={1}>{item.location}</Text>
-                                        </View>
-                                    )}
-                                    {item.assignedCleanerName && (
-                                        <View style={styles.chip}>
-                                            <MaterialCommunityIcons name="account-outline" size={11} color="#8F95B2" />
-                                            <Text style={styles.chipText} numberOfLines={1}>{item.assignedCleanerName}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <View style={styles.actionBtn}>
-                                    <Text style={styles.actionBtnText}>Ver</Text>
-                                    <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
-                                </View>
-                            </View>
                         </View>
+                        <MaterialCommunityIcons name="chevron-right" size={22} color="#C7D2FE" />
                     </TouchableOpacity>
                 );
             }}
@@ -457,11 +443,16 @@ const styles = StyleSheet.create({
 
     // Card
     card: {
+        position: "relative",
         flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
         backgroundColor: "#ffffff",
         borderRadius: 20,
         marginHorizontal: 20,
         marginBottom: 12,
+        padding: 16,
+        paddingLeft: 20,
         overflow: "hidden",
         shadowColor: "#4A6CF7",
         shadowOpacity: 0.09,
@@ -470,80 +461,66 @@ const styles = StyleSheet.create({
         elevation: 3,
     },
     stripe: {
+        position: "absolute",
+        left: 0, top: 0, bottom: 0,
         width: 4,
     },
-    cardInner: {
-        flex: 1,
-        padding: 16,
-        gap: 6,
+    cardIconBox: {
+        width: 48, height: 48, borderRadius: 14,
+        alignItems: "center", justifyContent: "center", flexShrink: 0,
+    },
+    cardInfo: {
+        flex: 1, minWidth: 0, gap: 4,
     },
     cardTopRow: {
         flexDirection: "row",
-        gap: 6,
-        flexWrap: "wrap",
-    },
-    badge: {
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-    },
-    badgeText: {
-        fontSize: 11,
-        fontWeight: "700",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
     },
     cardTitle: {
+        flex: 1,
         color: "#1A1F36",
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: "800",
-        lineHeight: 20,
     },
-    cardDescription: {
+    cardTime: {
         color: "#8F95B2",
-        fontSize: 13,
-        lineHeight: 19,
+        fontSize: 10,
+        fontWeight: "500",
+        marginLeft: 8,
+        flexShrink: 0,
     },
-    cardBottomRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 4,
-        gap: 8,
+    cardLocation: {
+        color: "#8F95B2",
+        fontSize: 12,
+        fontWeight: "500",
     },
-    chipsRow: {
+    cardTags: {
         flexDirection: "row",
         gap: 6,
-        flex: 1,
-        flexWrap: "wrap",
+        marginTop: 2,
+        alignItems: "center",
     },
-    chip: {
+    cardTag: {
+        borderRadius: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    cardTagText: {
+        fontSize: 10,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    cardLocationChip: {
         flexDirection: "row",
         alignItems: "center",
         gap: 3,
-        backgroundColor: "#F1F3FF",
-        borderRadius: 999,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        maxWidth: 130,
     },
-    chipText: {
+    cardLocationChipText: {
         color: "#8F95B2",
         fontSize: 11,
-        fontWeight: "600",
-    },
-    actionBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        backgroundColor: "#E8EDFF",
-        borderRadius: 999,
-        paddingHorizontal: 12,
-        paddingVertical: 5,
-        flexShrink: 0,
-    },
-    actionBtnText: {
-        color: "#4A6CF7",
-        fontSize: 12,
-        fontWeight: "700",
+        fontWeight: "500",
     },
 
     // Empty
