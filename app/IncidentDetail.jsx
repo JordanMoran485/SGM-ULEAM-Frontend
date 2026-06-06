@@ -151,30 +151,32 @@ export default function IncidentDetail() {
                 </View>
             </LinearGradient>
 
-            {/* ── Imagen ── */}
-            <View style={s.imageCard}>
-                {imageSource ? (
-                    <Image
-                        source={imageSource}
-                        style={s.image}
-                        resizeMode="cover"
-                        onError={() => setImageFailed(true)}
-                    />
-                ) : (
-                    <View style={s.imageFallback}>
-                        <LinearGradient
-                            colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                            style={s.imageFallbackIcon}
-                        >
-                            <View style={s.imageFallbackDeco} />
-                            <MaterialCommunityIcons name="image-off-outline" size={28} color="rgba(255,255,255,0.9)" />
-                        </LinearGradient>
-                        <Text style={s.imageFallbackTitle}>Sin evidencia visual</Text>
-                        <Text style={s.imageFallbackSub}>No se adjuntó imagen a este reporte.</Text>
-                    </View>
-                )}
-            </View>
+            {/* ── Imagen (solo incidencias) ── */}
+            {recordType === 'incident' && (
+                <View style={s.imageCard}>
+                    {imageSource ? (
+                        <Image
+                            source={imageSource}
+                            style={s.image}
+                            resizeMode="cover"
+                            onError={() => setImageFailed(true)}
+                        />
+                    ) : (
+                        <View style={s.imageFallback}>
+                            <LinearGradient
+                                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                                style={s.imageFallbackIcon}
+                            >
+                                <View style={s.imageFallbackDeco} />
+                                <MaterialCommunityIcons name="image-off-outline" size={28} color="rgba(255,255,255,0.9)" />
+                            </LinearGradient>
+                            <Text style={s.imageFallbackTitle}>Sin evidencia visual</Text>
+                            <Text style={s.imageFallbackSub}>No se adjuntó imagen a este reporte.</Text>
+                        </View>
+                    )}
+                </View>
+            )}
 
             {/* ── Info ── */}
             <View style={s.card}>

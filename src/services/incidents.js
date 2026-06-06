@@ -167,16 +167,12 @@ function appendIfPresent(formData, key, value) {
 }
 
 function buildUploadFile(image) {
-  if (!image?.uri) {
-    return null;
-  }
-
+  if (!image?.uri) return null;
   const uri = image.uri;
   const extensionMatch = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
   const extension = extensionMatch?.[1]?.toLowerCase() || 'jpg';
   const normalizedExtension = extension === 'jpeg' ? 'jpg' : extension;
   const type = image.mimeType || image.type || `image/${normalizedExtension}`;
-
   return {
     uri,
     name: image.fileName || `incident-${Date.now()}.${normalizedExtension}`,
@@ -194,10 +190,7 @@ export async function createIncident(token, payload) {
   appendIfPresent(formData, 'status', payload?.status || 'pending');
 
   const uploadFile = buildUploadFile(payload?.image);
-
-  if (uploadFile) {
-    formData.append('image', uploadFile);
-  }
+  if (uploadFile) formData.append('image', uploadFile);
 
   const response = await fetch(buildApiUrl('/api/incidents'), {
     method: 'POST',

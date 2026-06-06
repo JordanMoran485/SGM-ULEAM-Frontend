@@ -78,10 +78,10 @@ export default function ReportIncidentScreen() {
 
     const validate = () => {
         const next = {};
-        if (!title.trim())                    next.title       = 'El asunto es obligatorio.';
-        if (!location.trim() && !locationType) next.location  = 'La ubicación es obligatoria.';
-        if (!description.trim())              next.description = 'La descripción es obligatoria.';
-        if (!photo)              next.photo       = 'Debes adjuntar una foto de la incidencia.';
+        if (!title.trim())                     next.title       = 'El asunto es obligatorio.';
+        if (!location.trim() && !locationType) next.location   = 'La ubicación es obligatoria.';
+        if (!description.trim())               next.description = 'La descripción es obligatoria.';
+        if (!photo)                            next.photo       = 'Debes adjuntar una foto de la incidencia.';
         setErrors(next);
         return Object.keys(next).length === 0;
     };
@@ -186,7 +186,7 @@ export default function ReportIncidentScreen() {
                             style={[styles.photoPlaceholder, errors.photo && styles.photoPlaceholderError]}
                         >
                             <View style={styles.photoDecoDot} />
-                            <View style={[styles.photoIconBox]}>
+                            <View style={styles.photoIconBox}>
                                 <MaterialCommunityIcons name="camera-outline" size={32} color="rgba(255,255,255,0.9)" />
                             </View>
                             <Text style={styles.photoPlaceholderText}>Sin evidencia adjunta</Text>
@@ -401,16 +401,12 @@ const styles = StyleSheet.create({
 
     // Foto
     photoSection: { gap: 10, marginBottom: 4 },
-    photoPreview: {
-        width: '100%', height: 200, borderRadius: 16,
-    },
+    photoPreview: { width: '100%', height: 200, borderRadius: 16 },
     photoPlaceholder: {
         height: 160, borderRadius: 16, overflow: 'hidden',
         alignItems: 'center', justifyContent: 'center', gap: 8,
     },
-    photoPlaceholderError: {
-        borderWidth: 1.5, borderColor: '#F43F5E',
-    },
+    photoPlaceholderError: { borderWidth: 1.5, borderColor: '#F43F5E' },
     photoDecoDot: {
         position: 'absolute', top: -20, right: -20,
         width: 80, height: 80, borderRadius: 40,
@@ -421,22 +417,14 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center', justifyContent: 'center',
     },
-    photoPlaceholderText: {
-        color: 'rgba(255,255,255,0.70)', fontSize: 13, fontWeight: '600',
-    },
-    photoActions: {
-        flexDirection: 'row', gap: 10,
-    },
-    photoBtn: {
-        flex: 1, borderRadius: 14,
-    },
+    photoPlaceholderText: { color: 'rgba(255,255,255,0.70)', fontSize: 13, fontWeight: '600' },
+    photoActions: { flexDirection: 'row', gap: 10 },
+    photoBtn: { flex: 1, borderRadius: 14 },
     photoBtnGradient: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         gap: 7, paddingVertical: 13, borderRadius: 14,
     },
-    photoBtnTextPrimary: {
-        color: '#ffffff', fontSize: 14, fontWeight: '700',
-    },
+    photoBtnTextPrimary: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
     photoBtnSecondary: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         gap: 7, paddingVertical: 13, borderRadius: 14,
@@ -444,9 +432,7 @@ const styles = StyleSheet.create({
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
         shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
     },
-    photoBtnTextSecondary: {
-        color: '#4A6CF7', fontSize: 14, fontWeight: '700',
-    },
+    photoBtnTextSecondary: { color: '#4A6CF7', fontSize: 14, fontWeight: '700' },
 
     divider: { height: 1, backgroundColor: '#F1F3FF', marginVertical: 20 },
 
