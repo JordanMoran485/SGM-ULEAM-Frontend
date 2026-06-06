@@ -16,28 +16,48 @@ const FILTERS = [
     { key: "completed",   label: "Completada" },
 ];
 
-function getStatusConfig(status) {
-    if (status === "completed") return {
-        stripe: "#22C55E",
-        badgeBg: "#DCFCE7", badgeText: "#16A34A",
-        iconBg: "#DCFCE7",  iconColor: "#22C55E",
-        label: "Completada",
+function getStatusConfig(status, approvalStatus) {
+    if (approvalStatus === 'Rechazada') return {
+        stripe: '#F43F5E',
+        badgeBg: '#FFE4E8', badgeText: '#F43F5E',
+        iconBg: '#FFE4E8',  iconColor: '#F43F5E',
+        label: 'Rechazada',
     };
-    if (status === "in_progress") return {
-        stripe: "#4A6CF7",
-        badgeBg: "#E8EDFF", badgeText: "#2D3FE0",
-        iconBg: "#E8EDFF",  iconColor: "#4A6CF7",
-        label: "En progreso",
+    if (status === 'completed') return {
+        stripe: '#22C55E',
+        badgeBg: '#DCFCE7', badgeText: '#16A34A',
+        iconBg: '#DCFCE7',  iconColor: '#22C55E',
+        label: 'Completada',
+    };
+    if (status === 'in_progress') return {
+        stripe: '#4A6CF7',
+        badgeBg: '#E8EDFF', badgeText: '#2D3FE0',
+        iconBg: '#E8EDFF',  iconColor: '#4A6CF7',
+        label: 'En progreso',
+    };
+    if (approvalStatus === 'Aceptada') return {
+        stripe: '#06B6D4',
+        badgeBg: '#E8F8FB', badgeText: '#06B6D4',
+        iconBg: '#E8F8FB',  iconColor: '#06B6D4',
+        label: 'Revisada',
     };
     return {
-        stripe: "#F59E0B",
-        badgeBg: "#FEF3C7", badgeText: "#D97706",
-        iconBg: "#FEF3C7",  iconColor: "#F59E0B",
-        label: "Pendiente",
+        stripe: '#F59E0B',
+        badgeBg: '#FEF3C7', badgeText: '#D97706',
+        iconBg: '#FEF3C7',  iconColor: '#F59E0B',
+        label: 'Pendiente',
     };
 }
 
 const SPACE_TYPES = new Set(['Baño', 'Aula', 'Pasillo', 'Exteriores', 'Escaleras']);
+
+const SPACE_TYPE_ICONS = {
+    'Baño':       'toilet',
+    'Aula':       'school-outline',
+    'Pasillo':    'door-open',
+    'Exteriores': 'tree-outline',
+    'Escaleras':  'stairs',
+};
 
 function parseLocation(location) {
     if (!location) return { spaceType: null, address: null };
@@ -217,7 +237,7 @@ export default function IncidentsScreen() {
             onRefresh={refreshScreen}
             ListHeaderComponent={ListHeader}
             renderItem={({ item }) => {
-                const sc = getStatusConfig(item.status);
+                const sc = getStatusConfig(item.status, item.approvalStatus);
                 const { spaceType, address } = parseLocation(item.location);
                 return (
                     <TouchableOpacity
@@ -230,7 +250,7 @@ export default function IncidentsScreen() {
                     >
                         <View style={[styles.stripe, { backgroundColor: sc.stripe }]} />
                         <View style={[styles.cardIconBox, { backgroundColor: sc.iconBg }]}>
-                            <MaterialCommunityIcons name="alert-circle-outline" size={22} color={sc.iconColor} />
+                            <MaterialCommunityIcons name={SPACE_TYPE_ICONS[spaceType] ?? 'alert-circle-outline'} size={22} color={sc.iconColor} />
                         </View>
                         <View style={styles.cardInfo}>
                             <View style={styles.cardTopRow}>

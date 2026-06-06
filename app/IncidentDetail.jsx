@@ -7,11 +7,15 @@ import { useAppContext } from '../src/context/AppContext';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function getStatusConfig(status) {
+function getStatusConfig(status, approvalStatus) {
+    if (approvalStatus === 'Rechazada')
+        return { color: '#F43F5E', bg: '#FFE4E8', label: 'Rechazada', icon: 'close-circle-outline' };
     if (status === 'completed' || status === 'resolved')
         return { color: '#22C55E', bg: '#DCFCE7', label: 'Completada', icon: 'check-circle-outline' };
     if (status === 'in_progress')
         return { color: '#4A6CF7', bg: '#E8EDFF', label: 'En progreso', icon: 'progress-clock' };
+    if (approvalStatus === 'Aceptada')
+        return { color: '#06B6D4', bg: '#E8F8FB', label: 'Revisada', icon: 'clipboard-check-outline' };
     return { color: '#F59E0B', bg: '#FEF3C7', label: 'Pendiente', icon: 'clock-outline' };
 }
 
@@ -36,7 +40,7 @@ function InfoRow({ icon, label, value }) {
 }
 
 function TaskRow({ task }) {
-    const sc = getStatusConfig(task.status);
+    const sc = getStatusConfig(task.status, null);
     return (
         <View style={s.taskRow}>
             <View style={[s.taskStripe, { backgroundColor: sc.color }]} />
@@ -110,7 +114,7 @@ export default function IncidentDetail() {
 
     const imageUri    = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
-    const sc          = getStatusConfig(incident?.status);
+    const sc          = getStatusConfig(incident?.status, incident?.approvalStatus);
     const userRole    = Array.isArray(user?.roles) ? user.roles[0]?.name : user?.role;
     const canUpdate   = recordType === 'task' && userRole === 'conserje' && incident;
 
