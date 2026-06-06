@@ -19,13 +19,6 @@ function getStatusConfig(status) {
   return { stripe: '#F59E0B', bg: '#FEF3C7', color: '#D97706', label: 'Pendiente' };
 }
 
-const TASK_CATEGORIES = [
-  { label: 'Limpieza',      icon: 'broom',          iconBg: '#DCFCE7', iconColor: '#22C55E' },
-  { label: 'Mantenimiento', icon: 'wrench',         iconBg: '#E8EDFF', iconColor: '#4A6CF7' },
-  { label: 'Fontanería',    icon: 'pipe-wrench',    iconBg: '#FEE2E2', iconColor: '#EF4444' },
-  { label: 'Electricidad',  icon: 'lightning-bolt', iconBg: '#FEF3C7', iconColor: '#F59E0B' },
-];
-
 function firstRole(user) {
   if (Array.isArray(user?.roles) && user.roles[0]?.name) return user.roles[0].name;
   return user?.role || user?.cargo || null;
@@ -183,17 +176,16 @@ export default function TasksScreen() {
           </View>
         </View>
       }
-      renderItem={({ item, index }) => {
-        const sc  = getStatusConfig(item.status);
-        const cat = TASK_CATEGORIES[index % TASK_CATEGORIES.length];
+      renderItem={({ item }) => {
+        const sc   = getStatusConfig(item.status);
         return (
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.card}
             onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'task' } })}
           >
-            <View style={[styles.cardIconBox, { backgroundColor: cat.iconBg }]}>
-              <MaterialCommunityIcons name={cat.icon} size={22} color={cat.iconColor} />
+            <View style={[styles.cardIconBox, { backgroundColor: sc.bg }]}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={22} color={sc.color} />
             </View>
             <View style={styles.cardInfo}>
               <View style={styles.cardTopRow}>
@@ -206,9 +198,6 @@ export default function TasksScreen() {
               <View style={styles.cardTags}>
                 <View style={[styles.cardTag, { backgroundColor: sc.bg }]}>
                   <Text style={[styles.cardTagText, { color: sc.color }]}>{sc.label}</Text>
-                </View>
-                <View style={[styles.cardTag, { backgroundColor: cat.iconBg }]}>
-                  <Text style={[styles.cardTagText, { color: cat.iconColor }]}>{cat.label}</Text>
                 </View>
               </View>
             </View>

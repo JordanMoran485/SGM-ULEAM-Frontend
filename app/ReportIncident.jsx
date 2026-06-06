@@ -27,8 +27,6 @@ const LOCATION_TYPES = [
     { key: 'stairs',    label: 'Escaleras',  icon: 'stairs' },
 ];
 
-const CATEGORIES = ['Limpieza', 'Mantenimiento', 'Seguridad'];
-
 function FieldInput({ label, value, onChangeText, placeholder, multiline, error, focused, onFocus, onBlur }) {
     return (
         <View style={styles.fieldWrap}>
@@ -72,7 +70,6 @@ export default function ReportIncidentScreen() {
     const [errors, setErrors]         = useState({});
     const [focused, setFocused]       = useState('');
     const [locationType, setLocationType] = useState(null);
-    const [category, setCategory]         = useState(null);
 
     const clearError = (field) => setErrors((e) => ({ ...e, [field]: undefined }));
 
@@ -127,7 +124,6 @@ export default function ReportIncidentScreen() {
                 title: title.trim(),
                 location: locationFull,
                 description: description.trim(),
-                category: category || undefined,
                 image: photo,
             });
             await refreshIncidents();
@@ -278,30 +274,6 @@ export default function ReportIncidentScreen() {
                                     </View>
                                     <Text style={[styles.locationLabel, active && styles.locationLabelActive]}>
                                         {lt.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                {/* ── Categoría ── */}
-                <View style={styles.sectionBlock}>
-                    <Text style={styles.sectionBlockLabel}>Categoría</Text>
-                    <View style={styles.categoryRow}>
-                        {CATEGORIES.map((cat) => {
-                            const active = category === cat;
-                            return (
-                                <TouchableOpacity
-                                    key={cat}
-                                    activeOpacity={0.85}
-                                    style={[styles.categoryChip, active && styles.categoryChipActive]}
-                                    onPress={() => setCategory(active ? null : cat)}
-                                >
-                                    <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
-                                        {cat}
                                     </Text>
                                 </TouchableOpacity>
                             );
@@ -514,21 +486,4 @@ const styles = StyleSheet.create({
         color: '#2D3FE0', fontWeight: '700',
     },
 
-    // Categoría
-    categoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    categoryChip: {
-        paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16,
-        backgroundColor: '#F1F3FF',
-        borderWidth: 1, borderColor: '#E8EDFF',
-    },
-    categoryChipActive: {
-        backgroundColor: '#E8EDFF',
-        borderColor: '#C7D2FE',
-    },
-    categoryChipText: {
-        color: '#1A1F36', fontSize: 14, fontWeight: '500',
-    },
-    categoryChipTextActive: {
-        color: '#2D3FE0', fontWeight: '700',
-    },
 });

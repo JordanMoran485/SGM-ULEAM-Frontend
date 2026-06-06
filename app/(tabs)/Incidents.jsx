@@ -37,6 +37,20 @@ function getStatusConfig(status) {
     };
 }
 
+const SPACE_TYPES = new Set(['Baño', 'Aula', 'Pasillo', 'Exteriores', 'Escaleras']);
+
+function parseLocation(location) {
+    if (!location) return { spaceType: null, address: null };
+    const sep = location.indexOf(' - ');
+    if (sep !== -1) {
+        const candidate = location.slice(0, sep);
+        if (SPACE_TYPES.has(candidate)) {
+            return { spaceType: candidate, address: location.slice(sep + 3) || null };
+        }
+    }
+    return { spaceType: null, address: location };
+}
+
 function formatRelative(value) {
     if (!value) return "";
     const diff = (Date.now() - new Date(value).getTime()) / 1000;
@@ -45,13 +59,6 @@ function formatRelative(value) {
     if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
     return new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short" }).format(new Date(value));
 }
-
-const INCIDENT_CATEGORIES = [
-    { icon: "pipe-wrench" },
-    { icon: "lightning-bolt" },
-    { icon: "broom" },
-    { icon: "alert-circle-outline" },
-];
 
 function FilterTab({ label, active, onPress }) {
     if (active) {
@@ -209,9 +216,9 @@ export default function IncidentsScreen() {
             refreshing={refreshing}
             onRefresh={refreshScreen}
             ListHeaderComponent={ListHeader}
-            renderItem={({ item, index }) => {
-                const sc  = getStatusConfig(item.status);
-                const cat = INCIDENT_CATEGORIES[index % INCIDENT_CATEGORIES.length];
+            renderItem={({ item }) => {
+                const sc = getStatusConfig(item.status);
+                const { spaceType, address } = parseLocation(item.location);
                 return (
                     <TouchableOpacity
                         activeOpacity={0.85}
@@ -223,24 +230,24 @@ export default function IncidentsScreen() {
                     >
                         <View style={[styles.stripe, { backgroundColor: sc.stripe }]} />
                         <View style={[styles.cardIconBox, { backgroundColor: sc.iconBg }]}>
-                            <MaterialCommunityIcons name={cat.icon} size={22} color={sc.iconColor} />
+                            <MaterialCommunityIcons name="alert-circle-outline" size={22} color={sc.iconColor} />
                         </View>
                         <View style={styles.cardInfo}>
                             <View style={styles.cardTopRow}>
                                 <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
                                 <Text style={styles.cardTime}>{formatRelative(item.createdAt)}</Text>
                             </View>
-                            {item.location && (
-                                <Text style={styles.cardLocation} numberOfLines={1}>{item.location}</Text>
+                            {address && (
+                                <Text style={styles.cardLocation} numberOfLines={1}>{address}</Text>
                             )}
                             <View style={styles.cardTags}>
                                 <View style={[styles.cardTag, { backgroundColor: sc.badgeBg }]}>
                                     <Text style={[styles.cardTagText, { color: sc.badgeText }]}>{sc.label}</Text>
                                 </View>
-                                {item.location && (
-                                    <View style={styles.cardLocationChip}>
-                                        <MaterialCommunityIcons name="map-marker" size={12} color="#8F95B2" />
-                                        <Text style={styles.cardLocationChipText} numberOfLines={1}>{item.location}</Text>
+                                {spaceType && (
+                                    <View style={[styles.cardTag, { backgroundColor: '#E8EDFF', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                                        <MaterialCommunityIcons name="map-marker-outline" size={11} color="#4A6CF7" />
+                                        <Text style={[styles.cardTagText, { color: '#4A6CF7' }]}>{spaceType}</Text>
                                     </View>
                                 )}
                             </View>

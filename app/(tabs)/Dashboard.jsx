@@ -29,25 +29,25 @@ function formatRelative(value) {
     return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(new Date(value));
 }
 
-function getStatusConfig(status) {
-    if (status === 'completed') return { stripe: '#22C55E' };
-    if (status === 'in_progress') return { stripe: '#4A6CF7' };
-    return { stripe: '#F59E0B' };
+const SPACE_TYPES = new Set(['Baño', 'Aula', 'Pasillo', 'Exteriores', 'Escaleras']);
+
+function parseLocation(location) {
+    if (!location) return { spaceType: null, address: null };
+    const sep = location.indexOf(' - ');
+    if (sep !== -1) {
+        const candidate = location.slice(0, sep);
+        if (SPACE_TYPES.has(candidate)) {
+            return { spaceType: candidate, address: location.slice(sep + 3) || null };
+        }
+    }
+    return { spaceType: null, address: location };
 }
 
-const ACTIVITY_CATEGORIES = [
-    { label: 'Fontanería',    icon: 'pipe-wrench',    iconBg: '#FEE2E2', iconColor: '#EF4444' },
-    { label: 'Electricidad',  icon: 'lightning-bolt', iconBg: '#FEF3C7', iconColor: '#F59E0B' },
-    { label: 'Limpieza',      icon: 'broom',          iconBg: '#DCFCE7', iconColor: '#22C55E' },
-    { label: 'Mantenimiento', icon: 'wrench',         iconBg: '#E8EDFF', iconColor: '#4A6CF7' },
-];
-
-const ACTIVITY_PRIORITIES = [
-    { label: 'Urgente',     bg: '#FEE2E2', color: '#EF4444' },
-    { label: 'Normal',      bg: '#E8EDFF', color: '#4A6CF7' },
-    { label: 'En revisión', bg: '#FEF3C7', color: '#F59E0B' },
-    { label: 'Urgente',     bg: '#FEE2E2', color: '#EF4444' },
-];
+function getStatusConfig(status) {
+    if (status === 'completed')  return { stripe: '#22C55E', iconBg: '#DCFCE7', iconColor: '#22C55E' };
+    if (status === 'in_progress') return { stripe: '#4A6CF7', iconBg: '#E8EDFF', iconColor: '#4A6CF7' };
+    return { stripe: '#F59E0B', iconBg: '#FEF3C7', iconColor: '#F59E0B' };
+}
 
 // ─── sub-components ─────────────────────────────────────────────────────────
 
@@ -386,9 +386,9 @@ export default function Dashboard() {
                     </View>
                 ) : (
                     <>
-                        {recentActivity.map((item, index) => {
-                            const cat  = ACTIVITY_CATEGORIES[index % ACTIVITY_CATEGORIES.length];
-                            const prio = ACTIVITY_PRIORITIES[index % ACTIVITY_PRIORITIES.length];
+                        {recentActivity.map((item) => {
+                            const sc = getStatusConfig(item.status);
+                            const { spaceType, address } = parseLocation(item.location);
                             return (
                                 <TouchableOpacity
                                     key={String(item.id)}
@@ -396,25 +396,23 @@ export default function Dashboard() {
                                     style={styles.activityCard}
                                     onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'incident' } })}
                                 >
-                                    <View style={[styles.activityIconBox, { backgroundColor: cat.iconBg }]}>
-                                        <MaterialCommunityIcons name={cat.icon} size={22} color={cat.iconColor} />
+                                    <View style={[styles.activityIconBox, { backgroundColor: sc.iconBg }]}>
+                                        <MaterialCommunityIcons name="alert-circle-outline" size={22} color={sc.iconColor} />
                                     </View>
                                     <View style={styles.activityInfo}>
                                         <View style={styles.activityTopRow}>
                                             <Text style={styles.activityTitle} numberOfLines={1}>{item.title}</Text>
                                             <Text style={styles.activityTime}>{formatRelative(item.createdAt)}</Text>
                                         </View>
-                                        {item.location && (
-                                            <Text style={styles.activityLocation} numberOfLines={1}>{item.location}</Text>
+                                        {address && (
+                                            <Text style={styles.activityLocation} numberOfLines={1}>{address}</Text>
                                         )}
-                                        <View style={styles.activityTags}>
-                                            <View style={[styles.activityTag, { backgroundColor: prio.bg }]}>
-                                                <Text style={[styles.activityTagText, { color: prio.color }]}>{prio.label}</Text>
+                                        {spaceType && (
+                                            <View style={styles.activitySpaceChip}>
+                                                <MaterialCommunityIcons name="map-marker-outline" size={11} color="#4A6CF7" />
+                                                <Text style={styles.activitySpaceChipText}>{spaceType}</Text>
                                             </View>
-                                            <View style={[styles.activityTag, { backgroundColor: cat.iconBg }]}>
-                                                <Text style={[styles.activityTagText, { color: cat.iconColor }]}>{cat.label}</Text>
-                                            </View>
-                                        </View>
+                                        )}
                                     </View>
                                     <MaterialCommunityIcons name="chevron-right" size={22} color="#C7D2FE" />
                                 </TouchableOpacity>
@@ -672,13 +670,14 @@ const styles = StyleSheet.create({
     activityLocation: {
         color: '#8F95B2', fontSize: 12, fontWeight: '500',
     },
-    activityTags: {
-        flexDirection: 'row', gap: 6, marginTop: 2,
+    activitySpaceChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        alignSelf: 'flex-start',
+        backgroundColor: '#E8EDFF', borderRadius: 999,
+        paddingHorizontal: 8, paddingVertical: 3, marginTop: 4,
     },
-    activityTag: {
-        borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3,
-    },
-    activityTagText: {
-        fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5,
+    activitySpaceChipText: {
+        color: '#4A6CF7', fontSize: 10, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.5,
     },
 });

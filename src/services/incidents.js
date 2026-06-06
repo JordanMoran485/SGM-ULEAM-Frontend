@@ -92,6 +92,7 @@ function normalizeTask(rawTask) {
     assignedCleanerName: getPersonName(rawTask?.user),
     assignedCleanerRole: 'Conserje asignado',
     priority: firstDefined(rawTask?.priority, 'Media'),
+    category: firstDefined(rawTask?.category, ''),
     dueDate: firstDefined(rawTask?.due_date, rawTask?.dueDate),
     userId: firstDefined(rawTask?.user_id, rawTask?.userId),
     incidentId: firstDefined(rawTask?.incident_id, rawTask?.incidentId),
