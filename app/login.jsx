@@ -1,19 +1,24 @@
 import React, { useState } from "react";
-import { Alert, Keyboard, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import {
+  ActivityIndicator, Alert, Keyboard, ScrollView, StyleSheet,
+  Text, TouchableOpacity, TouchableWithoutFeedback, View,
+} from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { HelperText, TextInput } from "react-native-paper";
 import { useAppContext } from '../src/context/AppContext';
 import { buildApiUrl } from '../src/services/api';
 import { extractAuthPayload } from '../src/services/auth';
 
 const customTheme = {
   colors: {
-    primary: '#0f2f29',
-    outline: '#cad7d2',
-    onSurfaceVariant: '#64746f',
-    surface: 'white',
+    primary: '#2D3FE0',
+    outline: '#C9D4FF',
+    onSurfaceVariant: '#8F95B2',
+    surface: '#FFFFFF',
+    error: '#F43F5E',
   }
 };
 
@@ -77,19 +82,29 @@ export default function LoginScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <LinearGradient
-        colors={['#f3f7f5', '#eef3f0', '#f8faf9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.screen}
-      >
-        <View style={styles.shell}>
-          <View style={styles.card}>
+      <View style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* ── Encabezado ── */}
+          <View style={styles.header}>
+            <LinearGradient
+              colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoBadge}
+            >
+              <View style={styles.logoDeco} />
+              <MaterialCommunityIcons name="school-outline" size={36} color="rgba(255,255,255,0.95)" />
+            </LinearGradient>
+            <Text style={styles.eyebrow}>SGM Uleam</Text>
             <Text style={styles.title}>Iniciar sesión</Text>
-            <Text style={styles.subtitle}>
-              Accede al sistema para consultar tareas, incidencias y seguimiento operativo.
-            </Text>
+          </View>
 
+          {/* ── Card del formulario ── */}
+          <View style={styles.card}>
             <Controller
               control={control}
               name="email"
@@ -109,12 +124,13 @@ export default function LoginScreen() {
                     maxLength={60}
                     theme={customTheme}
                     style={styles.input}
-                    textColor="#18201d"
+                    textColor="#1A1F36"
                     mode="outlined"
                     autoCapitalize="none"
                     keyboardType="email-address"
                     error={!!errors.email}
                     outlineStyle={styles.inputOutline}
+                    left={<TextInput.Icon icon="email-outline" color="#4A6CF7" />}
                   />
                   <HelperText type="error" visible={!!errors.email}>
                     {errors.email?.message}
@@ -148,14 +164,15 @@ export default function LoginScreen() {
                     mode="outlined"
                     theme={customTheme}
                     style={styles.input}
-                    textColor="#18201d"
+                    textColor="#1A1F36"
                     outlineStyle={styles.inputOutline}
                     error={!!errors.password}
+                    left={<TextInput.Icon icon="lock-outline" color="#4A6CF7" />}
                     right={
                       <TextInput.Icon
                         onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                         icon={isPasswordVisible ? "eye-off" : "eye"}
-                        color="#4e625d"
+                        color="#8F95B2"
                       />
                     }
                   />
@@ -166,27 +183,33 @@ export default function LoginScreen() {
               )}
             />
 
-            <Button
-              mode="contained"
+            <TouchableOpacity
+              activeOpacity={0.85}
               onPress={handleSubmit(onSubmit)}
+              disabled={loading}
               style={styles.primaryButton}
-              buttonColor="#0f2f29"
-              textColor="#f4f7f5"
-              loading={loading}
-              contentStyle={styles.primaryButtonContent}
             >
-              Entrar
-            </Button>
-
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
-              <TouchableOpacity onPress={() => router.replace("Register")}>
-                <Text style={styles.footerLink}>Registrarse</Text>
-              </TouchableOpacity>
-            </View>
+              <LinearGradient
+                colors={['#2D3FE0', '#4A6CF7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryButtonInner}
+              >
+                {loading && <ActivityIndicator size="small" color="#ffffff" />}
+                <Text style={styles.primaryButtonText}>Entrar</Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-        </View>
-      </LinearGradient>
+
+          {/* ── Footer ── */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => router.replace("Register")}>
+              <Text style={styles.footerLink}>Registrarse</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -194,72 +217,107 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: 22,
+    backgroundColor: '#EEF2FF',
   },
-  shell: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 48,
   },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
-    paddingHorizontal: 24,
-    paddingTop: 26,
-    paddingBottom: 22,
-    borderWidth: 1,
-    borderColor: '#dce7e2',
-    shadowColor: '#0f2f29',
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 10,
+  header: {
+    alignItems: 'center',
+    marginBottom: 28,
+    gap: 6,
+  },
+  logoBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 14,
+    shadowColor: '#2D3FE0',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  logoDeco: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  eyebrow: {
+    color: '#4A6CF7',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
   },
   title: {
-    color: '#16221e',
-    fontSize: 30,
+    color: '#1A1F36',
+    fontSize: 28,
     fontWeight: '800',
   },
-  subtitle: {
-    color: '#687974',
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 8,
-    marginBottom: 22,
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 22,
+    shadowColor: '#4A6CF7',
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   field: {
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#fbfcfb',
+    backgroundColor: '#ffffff',
   },
   inputOutline: {
-    borderRadius: 18,
-    borderColor: '#c8d5d0',
+    borderRadius: 16,
   },
   primaryButton: {
-    borderRadius: 18,
+    borderRadius: 20,
+    overflow: 'hidden',
     marginTop: 8,
   },
-  primaryButtonContent: {
-    height: 54,
+  primaryButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 20,
     gap: 6,
   },
   footerText: {
-    color: '#62736f',
-    fontSize: 15,
+    color: '#8F95B2',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footerLink: {
-    color: '#0f2f29',
-    fontSize: 15,
+    color: '#2D3FE0',
+    fontSize: 14,
     fontWeight: '800',
   },
 });

@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Keyboard, ScrollView, StyleSheet, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import {
+  ActivityIndicator, Alert, Keyboard, ScrollView, StyleSheet,
+  Text, TouchableOpacity, TouchableWithoutFeedback, View,
+} from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Button, HelperText, Text, TextInput } from "react-native-paper";
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { HelperText, TextInput } from "react-native-paper";
 import { Dropdown } from 'react-native-element-dropdown';
 import { useAppContext } from '../src/context/AppContext';
 import { buildApiUrl } from '../src/services/api';
@@ -12,10 +16,11 @@ import { getRegistrationCatalogs } from '../src/services/catalogs';
 
 const customTheme = {
   colors: {
-    primary: '#0f2f29',
-    outline: '#cad7d2',
-    onSurfaceVariant: '#64746f',
-    surface: 'white',
+    primary: '#2D3FE0',
+    outline: '#C9D4FF',
+    onSurfaceVariant: '#8F95B2',
+    surface: '#FFFFFF',
+    error: '#F43F5E',
   }
 };
 
@@ -112,27 +117,33 @@ export default function RegisterScreen() {
     }
   };
 
+  const submitDisabled = loading || catalogLoading || !!catalogError;
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <LinearGradient
-        colors={['#f4f7f5', '#eef3f0', '#f8faf9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.screen}
-      >
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>REGISTRO</Text>
-          <Text style={styles.title}>Crear cuenta institucional</Text>
-        </View>
-
+      <View style={styles.screen}>
         <ScrollView
-          style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Registro institucional</Text>
+          {/* ── Encabezado ── */}
+          <View style={styles.header}>
+            <LinearGradient
+              colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.logoBadge}
+            >
+              <View style={styles.logoDeco} />
+              <MaterialCommunityIcons name="account-plus-outline" size={36} color="rgba(255,255,255,0.95)" />
+            </LinearGradient>
+            <Text style={styles.eyebrow}>SGM Uleam</Text>
+            <Text style={styles.title}>Crear cuenta</Text>
+          </View>
 
+          {/* ── Card del formulario ── */}
+          <View style={styles.card}>
             <View style={styles.row}>
               <View style={[styles.field, styles.halfField]}>
                 <Controller
@@ -148,7 +159,7 @@ export default function RegisterScreen() {
                         theme={customTheme}
                         maxLength={30}
                         mode="outlined"
-                        textColor="#18201d"
+                        textColor="#1A1F36"
                         error={!!errors.name}
                         style={styles.input}
                         outlineStyle={styles.inputOutline}
@@ -173,7 +184,7 @@ export default function RegisterScreen() {
                         theme={customTheme}
                         maxLength={30}
                         mode="outlined"
-                        textColor="#18201d"
+                        textColor="#1A1F36"
                         error={!!errors.lastname}
                         style={styles.input}
                         outlineStyle={styles.inputOutline}
@@ -204,12 +215,13 @@ export default function RegisterScreen() {
                     maxLength={80}
                     theme={customTheme}
                     style={styles.input}
-                    textColor="#18201d"
+                    textColor="#1A1F36"
                     mode="outlined"
                     autoCapitalize="none"
                     keyboardType="email-address"
                     error={!!errors.email}
                     outlineStyle={styles.inputOutline}
+                    left={<TextInput.Icon icon="email-outline" color="#4A6CF7" />}
                   />
                   <HelperText type="error" visible={!!errors.email}>{errors.email?.message}</HelperText>
                 </View>
@@ -232,6 +244,8 @@ export default function RegisterScreen() {
                     placeholderStyle={styles.dropdownPlaceholder}
                     selectedTextStyle={styles.dropdownSelected}
                     itemTextStyle={styles.dropdownItem}
+                    containerStyle={styles.dropdownContainer}
+                    activeColor="#E8EDFF"
                     value={value}
                     onChange={(item) => onChange(item.value)}
                   />
@@ -271,14 +285,14 @@ export default function RegisterScreen() {
                         mode="outlined"
                         theme={customTheme}
                         style={styles.input}
-                        textColor="#18201d"
+                        textColor="#1A1F36"
                         outlineStyle={styles.inputOutline}
                         error={!!errors.password}
                         right={
                           <TextInput.Icon
                             onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                             icon={isPasswordVisible ? "eye-off" : "eye"}
-                            color="#4e625d"
+                            color="#8F95B2"
                           />
                         }
                       />
@@ -306,7 +320,7 @@ export default function RegisterScreen() {
                         maxLength={40}
                         mode="outlined"
                         theme={customTheme}
-                        textColor="#18201d"
+                        textColor="#1A1F36"
                         style={styles.input}
                         outlineStyle={styles.inputOutline}
                         error={!!errors.confirmPassword}
@@ -318,28 +332,33 @@ export default function RegisterScreen() {
               </View>
             </View>
 
-            <Button
-              mode="contained"
+            <TouchableOpacity
+              activeOpacity={0.85}
               onPress={handleSubmit(onSubmit)}
-              style={styles.primaryButton}
-              buttonColor="#0f2f29"
-              textColor="#f4f7f5"
-              loading={loading}
-              disabled={catalogLoading || !!catalogError}
-              contentStyle={styles.primaryButtonContent}
+              disabled={submitDisabled}
+              style={[styles.primaryButton, submitDisabled && styles.primaryButtonDisabled]}
             >
-              Crear cuenta
-            </Button>
+              <LinearGradient
+                colors={['#2D3FE0', '#4A6CF7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.primaryButtonInner}
+              >
+                {loading && <ActivityIndicator size="small" color="#ffffff" />}
+                <Text style={styles.primaryButtonText}>Crear cuenta</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
-            <View style={styles.footerRow}>
-              <Text style={styles.footerText}>¿Ya tienes una cuenta?</Text>
-              <TouchableOpacity onPress={() => router.replace("Login")}>
-                <Text style={styles.footerLink}>Iniciar sesión</Text>
-              </TouchableOpacity>
-            </View>
+          {/* ── Footer ── */}
+          <View style={styles.footerRow}>
+            <Text style={styles.footerText}>¿Ya tienes una cuenta?</Text>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => router.replace("Login")}>
+              <Text style={styles.footerLink}>Iniciar sesión</Text>
+            </TouchableOpacity>
           </View>
         </ScrollView>
-      </LinearGradient>
+      </View>
     </TouchableWithoutFeedback>
   );
 }
@@ -347,47 +366,65 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: 22,
-    paddingTop: 56,
-  },
-  hero: {
-    gap: 10,
-    marginBottom: 18,
-  },
-  kicker: {
-    color: '#5b6f69',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  title: {
-    color: '#13211c',
-    fontSize: 32,
-    fontWeight: '800',
-    lineHeight: 38,
-  },
-  scroll: {
-    flex: 1,
+    backgroundColor: '#EEF2FF',
   },
   scrollContent: {
-    paddingBottom: 32,
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 64,
+    paddingBottom: 36,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 6,
+  },
+  logoBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#2D3FE0',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  logoDeco: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  eyebrow: {
+    color: '#4A6CF7',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  title: {
+    color: '#1A1F36',
+    fontSize: 28,
+    fontWeight: '800',
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 28,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: '#dce7e2',
-    shadowColor: '#0f2f29',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  cardTitle: {
-    color: '#13211c',
-    fontSize: 24,
-    fontWeight: '800',
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 22,
+    shadowColor: '#4A6CF7',
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   row: {
     flexDirection: 'row',
@@ -400,62 +437,81 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   input: {
-    backgroundColor: '#fcfdfb',
+    backgroundColor: '#ffffff',
   },
   inputOutline: {
-    borderRadius: 18,
-    borderColor: '#c8d5d0',
+    borderRadius: 16,
   },
   dropdown: {
     height: 56,
-    borderColor: '#c8d5d0',
+    borderColor: '#C9D4FF',
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#fcfdfb',
+    backgroundColor: '#ffffff',
+    marginTop: 6,
   },
   dropdownError: {
-    borderColor: '#b3261e',
+    borderColor: '#F43F5E',
   },
   dropdownPlaceholder: {
-    color: '#70817b',
+    color: '#8F95B2',
     fontSize: 15,
   },
   dropdownSelected: {
-    color: '#18201d',
+    color: '#1A1F36',
     fontSize: 15,
+    fontWeight: '500',
   },
   dropdownItem: {
-    color: '#18201d',
+    color: '#1A1F36',
+  },
+  dropdownContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   catalogError: {
-    color: '#b3261e',
+    color: '#F43F5E',
     fontSize: 13,
     lineHeight: 19,
     marginTop: 2,
     marginBottom: 10,
   },
   primaryButton: {
-    borderRadius: 18,
+    borderRadius: 20,
+    overflow: 'hidden',
     marginTop: 10,
   },
-  primaryButtonContent: {
-    height: 54,
+  primaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  primaryButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
   },
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 20,
     gap: 6,
   },
   footerText: {
-    color: '#5b6b66',
-    fontSize: 15,
+    color: '#8F95B2',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footerLink: {
-    color: '#0f2f29',
-    fontSize: 15,
+    color: '#2D3FE0',
+    fontSize: 14,
     fontWeight: '800',
   },
 });
