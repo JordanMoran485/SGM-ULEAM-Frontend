@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1044102527333",
+    "project_id": "sgm-uleam",
+    "storage_bucket": "sgm-uleam.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1044102527333:android:4b1530d2a15d022d1a498c",
+        "android_client_info": {
+          "package_name": "com.anonymous.SGMUleam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARgKeOUdeUX9Y-ogkS3-ykv4vbVaiEt-s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

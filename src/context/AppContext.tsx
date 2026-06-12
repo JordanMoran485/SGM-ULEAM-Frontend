@@ -1,4 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+import { AppState, Platform } from 'react-native';
 import React, {
   createContext,
   useContext,
@@ -10,7 +14,21 @@ import React, {
 import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
 import { getNotifications, markNotificationAsRead } from '../services/notifications';
+import { savePushToken } from '../services/pushToken';
 import { getTasks, updateTaskStatus } from '../services/tasks';
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 type AppUser = any;
 type IncidentItem = any;
@@ -84,8 +102,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        const restoredToken = parsedAuth?.token || null;
         setUser(parsedAuth?.user || null);
-        setToken(parsedAuth?.token || null);
+        setToken(restoredToken);
+
+        if (restoredToken) {
+          registerPushToken(restoredToken);
+          getNotifications(restoredToken)
+            .then((next) => {
+              if (!isMounted) return;
+              setNotifications(next);
+              setNotificationsLoaded(true);
+            })
+            .catch(() => {});
+        }
       } catch (error) {
         console.error('No se pudo restaurar la sesión:', error);
       } finally {
@@ -102,6 +132,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (isExpoGo || !token) return;
+
+    const sub = Notifications.addNotificationReceivedListener(() => {
+      getNotifications(token)
+        .then((next) => { setNotifications(next); setNotificationsLoaded(true); })
+        .catch(() => {});
+    });
+
+    return () => sub.remove();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        getNotifications(token)
+          .then((next) => { setNotifications(next); setNotificationsLoaded(true); })
+          .catch(() => {});
+      }
+    });
+
+    return () => sub.remove();
+  }, [token]);
+
+  const registerPushToken = async (userToken: string) => {
+    if (Platform.OS === 'web' || isExpoGo) return;
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') return;
+
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#2D3FE0',
+        });
+      }
+
+      const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        Constants.easConfig?.projectId;
+      const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined
+      );
+      const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+      await savePushToken(userToken, expoPushToken, platform);
+    } catch (error) {
+      console.error('No se pudo registrar el push token:', error);
+    }
+  };
+
   const login = (userData: AppUser, userToken: string) => {
     setUser(userData);
     setToken(userToken);
@@ -115,6 +206,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ).catch((error) => {
       console.error('No se pudo guardar la sesión:', error);
     });
+
+    registerPushToken(userToken);
+
+    getNotifications(userToken)
+      .then((next) => {
+        setNotifications(next);
+        setNotificationsLoaded(true);
+      })
+      .catch(() => {});
   };
 
   const logout = () => {

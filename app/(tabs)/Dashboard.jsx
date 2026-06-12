@@ -31,6 +31,18 @@ function formatRelative(value) {
 
 const SPACE_TYPES = new Set(['Baño', 'Aula', 'Pasillo', 'Exteriores', 'Escaleras']);
 
+const SPACE_ICONS = {
+    'Baño':       'toilet',
+    'Aula':       'school-outline',
+    'Pasillo':    'walk',
+    'Exteriores': 'tree-outline',
+    'Escaleras':  'stairs',
+};
+
+function getSpaceIcon(spaceType) {
+    return SPACE_ICONS[spaceType] || 'alert-circle-outline';
+}
+
 function parseLocation(location) {
     if (!location) return { spaceType: null, address: null };
     const sep = location.indexOf(' - ');
@@ -397,7 +409,7 @@ export default function Dashboard() {
                                     onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'incident' } })}
                                 >
                                     <View style={[styles.activityIconBox, { backgroundColor: sc.iconBg }]}>
-                                        <MaterialCommunityIcons name="alert-circle-outline" size={22} color={sc.iconColor} />
+                                        <MaterialCommunityIcons name={getSpaceIcon(spaceType)} size={22} color={sc.iconColor} />
                                     </View>
                                     <View style={styles.activityInfo}>
                                         <View style={styles.activityTopRow}>

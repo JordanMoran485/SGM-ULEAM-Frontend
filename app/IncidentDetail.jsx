@@ -39,10 +39,10 @@ function InfoRow({ icon, label, value }) {
     );
 }
 
-function TaskRow({ task }) {
+function TaskRow({ task, onPress }) {
     const sc = getStatusConfig(task.status, null);
     return (
-        <View style={s.taskRow}>
+        <TouchableOpacity activeOpacity={0.85} style={s.taskRow} onPress={onPress}>
             <View style={[s.taskStripe, { backgroundColor: sc.color }]} />
             <View style={s.taskRowBody}>
                 <View style={s.taskRowTop}>
@@ -61,7 +61,10 @@ function TaskRow({ task }) {
                     <Text style={s.taskDesc} numberOfLines={2}>{task.description}</Text>
                 ) : null}
             </View>
-        </View>
+            <View style={s.taskChevron}>
+                <MaterialCommunityIcons name="chevron-right" size={20} color="#8F95B2" />
+            </View>
+        </TouchableOpacity>
     );
 }
 
@@ -202,6 +205,39 @@ export default function IncidentDetail() {
                 )}
             </View>
 
+            {/* ── Nota de revisión (rechazo o aprobación con comentario) ── */}
+            {incident?.approvalStatus === 'Rechazada' && incident?.reviewNotes ? (
+                <View style={[s.reviewNoteCard, { shadowColor: '#F43F5E' }]}>
+                    <View style={[s.reviewNoteStripe, { backgroundColor: '#F43F5E' }]} />
+                    <View style={s.reviewNoteBody}>
+                        <View style={[s.reviewNoteIconBox, { backgroundColor: '#FFE4E8' }]}>
+                            <MaterialCommunityIcons name="close-circle-outline" size={18} color="#F43F5E" />
+                        </View>
+                        <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={[s.reviewNoteLabel, { color: '#F43F5E' }]}>Motivo de rechazo</Text>
+                            <Text style={s.reviewNoteText}>{incident.reviewNotes}</Text>
+                        </View>
+                    </View>
+                </View>
+            ) : null}
+
+            {incident?.approvalStatus === 'Aceptada' ? (
+                <View style={[s.reviewNoteCard, { shadowColor: '#22C55E' }]}>
+                    <View style={[s.reviewNoteStripe, { backgroundColor: '#22C55E' }]} />
+                    <View style={s.reviewNoteBody}>
+                        <View style={[s.reviewNoteIconBox, { backgroundColor: '#DCFCE7' }]}>
+                            <MaterialCommunityIcons name="check-circle-outline" size={18} color="#22C55E" />
+                        </View>
+                        <View style={{ flex: 1, gap: 4 }}>
+                            <Text style={[s.reviewNoteLabel, { color: '#22C55E' }]}>Incidencia aprobada</Text>
+                            <Text style={s.reviewNoteText}>
+                                {incident.reviewNotes || 'El supervisor aprobó esta incidencia.'}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            ) : null}
+
             {/* ── Tareas asociadas (incidencias) ── */}
             {recordType === 'incident' && (
                 <View style={s.section}>
@@ -210,7 +246,10 @@ export default function IncidentDetail() {
                         <View style={s.card}>
                             {incident.tasks.map((task, i) => (
                                 <View key={String(task.id)}>
-                                    <TaskRow task={task} />
+                                    <TaskRow
+                                        task={task}
+                                        onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: task.id, type: 'task' } })}
+                                    />
                                     {i < incident.tasks.length - 1 && <Divider />}
                                 </View>
                             ))}
@@ -377,6 +416,7 @@ const s = StyleSheet.create({
     taskMeta:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
     taskMetaText:{ color: '#8F95B2', fontSize: 12, fontWeight: '500' },
     taskDesc:    { color: '#8F95B2', fontSize: 13, lineHeight: 18 },
+    taskChevron: { alignSelf: 'center', paddingRight: 10 },
 
     // Empty state
     emptyCard: {
@@ -397,6 +437,29 @@ const s = StyleSheet.create({
     },
     emptyTitle: { color: '#1A1F36', fontSize: 15, fontWeight: '800', textAlign: 'center' },
     emptyBody:  { color: '#8F95B2', fontSize: 13, lineHeight: 19, textAlign: 'center', maxWidth: 240 },
+
+    // Review note card
+    reviewNoteCard: {
+        marginHorizontal: 20, marginTop: 16, backgroundColor: '#ffffff', borderRadius: 20,
+        overflow: 'hidden',
+        shadowOpacity: 0.12, shadowRadius: 12,
+        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    },
+    reviewNoteStripe: { height: 4 },
+    reviewNoteBody: {
+        flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 14,
+    },
+    reviewNoteIconBox: {
+        width: 38, height: 38, borderRadius: 19,
+        alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    },
+    reviewNoteLabel: {
+        fontSize: 11, fontWeight: '700',
+        textTransform: 'uppercase', letterSpacing: 0.6,
+    },
+    reviewNoteText: {
+        color: '#1A1F36', fontSize: 14, fontWeight: '600', lineHeight: 20,
+    },
 
     // Actions
     actionsSection: { paddingHorizontal: 20, marginTop: 24, gap: 10 },
