@@ -24,6 +24,8 @@ function getNotificationType(notification) {
         return { label: 'Rechazada', bg: '#FFE4E8', text: '#F43F5E', stripe: '#F43F5E' };
     if (notification.notificationType === 'incident_accepted')
         return { label: 'Aprobada', bg: '#DCFCE7', text: '#22C55E', stripe: '#22C55E' };
+    if (notification.notificationType === 'task_unlinked')
+        return { label: 'Desvinculada', bg: '#FFE4E8', text: '#F43F5E', stripe: '#F43F5E' };
     if (notification.notificationType === 'task_assigned' || notification.taskId)
         return { label: 'Tarea', bg: '#E8EDFF', text: '#2D3FE0', stripe: '#4A6CF7' };
     if (notification.incidentId)
@@ -82,10 +84,6 @@ export default function NotificationsScreen() {
         notificationsLoaded,
         refreshNotifications,
         markNotificationRead,
-        tasks,
-        incidents,
-        refreshTasks,
-        refreshIncidents,
         isLoading,
     } = useAppContext();
 
@@ -116,22 +114,12 @@ export default function NotificationsScreen() {
             const goToIncident = notification.notificationType === 'incident_accepted'
                 || notification.notificationType === 'incident_rejected';
 
-            if (notification.incidentId && goToIncident) {
-                const loaded = incidents.some((i) => String(i.id) === String(notification.incidentId));
-                if (!loaded) await refreshIncidents();
+            if (notification.incidentId && (goToIncident || !notification.taskId)) {
                 router.push({ pathname: '/IncidentDetail', params: { id: String(notification.incidentId), type: 'incident' } });
                 return;
             }
             if (notification.taskId) {
-                const loaded = tasks.some((t) => String(t.id) === String(notification.taskId));
-                if (!loaded) await refreshTasks();
                 router.push({ pathname: '/IncidentDetail', params: { id: String(notification.taskId), type: 'task' } });
-                return;
-            }
-            if (notification.incidentId) {
-                const loaded = incidents.some((i) => String(i.id) === String(notification.incidentId));
-                if (!loaded) await refreshIncidents();
-                router.push({ pathname: '/IncidentDetail', params: { id: String(notification.incidentId), type: 'incident' } });
             }
         } catch (err) {
             console.error('Error al abrir notificación:', err);
@@ -151,7 +139,7 @@ export default function NotificationsScreen() {
             refreshControl={
                 <RefreshControl
                     refreshing={isLoading && notificationsLoaded}
-                    onRefresh={refreshNotifications}
+                    onRefresh={() => refreshNotifications().catch(() => {})}
                     tintColor="#4A6CF7"
                     colors={['#4A6CF7']}
                 />

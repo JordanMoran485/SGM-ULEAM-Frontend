@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 import React, {
@@ -8,6 +7,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -82,6 +82,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notificationsLoaded, setNotificationsLoaded] = useState(false);
 
+  // Reutiliza la petición en vuelo en lugar de disparar otra concurrente
+  // (pull-to-refresh repetido, refrescos al montar pantallas, etc.).
+  const inFlightRequests = useRef<Record<string, Promise<any> | null>>({});
+
+  const dedupeRequest = <T,>(key: string, run: () => Promise<T>): Promise<T> => {
+    const pending = inFlightRequests.current[key];
+    if (pending) {
+      return pending as Promise<T>;
+    }
+
+    const request = run().finally(() => {
+      inFlightRequests.current[key] = null;
+    });
+
+    inFlightRequests.current[key] = request;
+    return request;
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -149,6 +167,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
+        registerPushToken(token);
         getNotifications(token)
           .then((next) => { setNotifications(next); setNotificationsLoaded(true); })
           .catch(() => {});
@@ -158,8 +177,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => sub.remove();
   }, [token]);
 
+  // Respaldo cuando el push no llega (Expo Go, FCM caído en el emulador):
+  // sondea las notificaciones mientras la app está en primer plano.
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      if (AppState.currentState !== 'active') return;
+      getNotifications(token)
+        .then((next) => { setNotifications(next); setNotificationsLoaded(true); })
+        .catch(() => {});
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [token]);
+
+  // Token de auth para el que ya se registró el push token en este arranque;
+  // evita repetir el registro y permite reintentarlo si falló (p. ej. la red
+  // del emulador aún no estaba lista al abrir la app).
+  const pushTokenRegisteredFor = useRef<string | null>(null);
+
   const registerPushToken = async (userToken: string) => {
     if (Platform.OS === 'web' || isExpoGo) return;
+    if (pushTokenRegisteredFor.current === userToken) return;
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -183,13 +223,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const projectId =
         Constants.expoConfig?.extra?.eas?.projectId ??
         Constants.easConfig?.projectId;
-      const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined
-      );
+
+      let expoPushToken: string | null = null;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const { data } = await Notifications.getExpoPushTokenAsync(
+            projectId ? { projectId } : undefined
+          );
+          expoPushToken = data;
+          break;
+        } catch (error) {
+          if (attempt === 3) throw error;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+        }
+      }
+
+      if (!expoPushToken) return;
+
       const platform = Platform.OS === 'ios' ? 'ios' : 'android';
       await savePushToken(userToken, expoPushToken, platform);
-    } catch (error) {
-      console.error('No se pudo registrar el push token:', error);
+      pushTokenRegisteredFor.current = userToken;
+    } catch (error: any) {
+      console.warn('No se pudo registrar el push token:', error?.message || error);
     }
   };
 
@@ -246,7 +301,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return result;
   };
 
-  const refreshIncidents = async () => {
+  const refreshIncidents = () => dedupeRequest('incidents', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -261,9 +316,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  });
 
-  const refreshTasks = async () => {
+  const refreshTasks = () => dedupeRequest('tasks', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -278,7 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  });
 
   const updateTaskState = async (taskId: string | number, status: string) => {
     if (!token) {
@@ -300,7 +355,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshNotifications = async () => {
+  const refreshNotifications = () => dedupeRequest('notifications', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -315,7 +370,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  });
 
   const markNotificationRead = async (notificationId: string) => {
     if (!token) {

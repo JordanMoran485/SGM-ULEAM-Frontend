@@ -80,12 +80,33 @@ export default function IncidentDetail() {
     const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
+        const matchId = (item) => String(item.id) === String(params.id);
+        const embeddedTasks = incidents.flatMap((i) => i.tasks || []);
         if (recordType === 'task')
-            return tasks.find((t) => String(t.id) === String(params.id))
-                || incidents.find((i) => String(i.id) === String(params.id));
-        return incidents.find((i) => String(i.id) === String(params.id))
-            || tasks.find((t) => String(t.id) === String(params.id));
+            return tasks.find(matchId)
+                || embeddedTasks.find(matchId)
+                || incidents.find(matchId);
+        return incidents.find(matchId)
+            || tasks.find(matchId)
+            || embeddedTasks.find(matchId);
     }, [incidents, params.id, recordType, tasks]);
+
+    useEffect(() => {
+        // El registro puede estar en memoria con un estado de revisión viejo
+        // (p. ej. aprobada/rechazada después de cargar la lista); se refresca
+        // en segundo plano sin bloquear la pantalla. Secuencial porque el
+        // servidor de desarrollo atiende una petición a la vez. Las funciones
+        // de refresh cambian de identidad en cada render, no van en las deps.
+        (async () => {
+            try {
+                await refreshIncidents();
+                await refreshTasks();
+            } catch (e) {
+                console.warn('No se pudo actualizar el detalle:', e?.message);
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [params.id, recordType]);
 
     useEffect(() => {
         let mounted = true;
@@ -94,11 +115,16 @@ export default function IncidentDetail() {
             (recordType === 'incident' && incidentsLoaded && !incident);
         if (!needsReload) return;
         setIsRecovering(true);
-        (recordType === 'task'
-            ? Promise.all([refreshTasks(), refreshIncidents()])
-            : Promise.all([refreshIncidents(), refreshTasks()])
-        ).catch((e) => console.error('Error al recuperar detalle:', e))
-         .finally(() => { if (mounted) setIsRecovering(false); });
+        (async () => {
+            if (recordType === 'task') {
+                await refreshTasks();
+                await refreshIncidents();
+            } else {
+                await refreshIncidents();
+                await refreshTasks();
+            }
+        })().catch((e) => console.error('Error al recuperar detalle:', e))
+            .finally(() => { if (mounted) setIsRecovering(false); });
         return () => { mounted = false; };
     }, [incident, incidentsLoaded, recordType, refreshIncidents, refreshTasks, tasksLoaded]);
 
@@ -119,7 +145,9 @@ export default function IncidentDetail() {
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
     const sc          = getStatusConfig(incident?.status, incident?.approvalStatus);
     const userRole    = Array.isArray(user?.roles) ? user.roles[0]?.name : user?.role;
-    const canUpdate   = recordType === 'task' && userRole === 'conserje' && incident;
+    const isOwnTask   = incident?.userId != null && user?.id != null
+        && String(incident.userId) === String(user.id);
+    const canUpdate   = recordType === 'task' && userRole === 'conserje' && incident && isOwnTask;
 
     if (!incident && isRecovering) {
         return (

@@ -1,16 +1,4 @@
-import { fetchJson } from './api';
-
-function asArray(value) {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value?.data)) {
-    return value.data;
-  }
-
-  return [];
-}
+import { fetchJson, fetchJsonList } from './api';
 
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
@@ -36,11 +24,11 @@ function normalizeNotification(rawNotification) {
 }
 
 export async function getNotifications(token) {
-  const data = await fetchJson('/api/notifications', {
+  const list = await fetchJsonList('/api/notifications', {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  }, 'las notificaciones');
 
-  return asArray(data).map(normalizeNotification);
+  return list.map(normalizeNotification);
 }
 
 export async function markNotificationAsRead(token, notificationId) {

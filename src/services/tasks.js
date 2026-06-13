@@ -1,4 +1,4 @@
-import { buildStorageUrl, fetchJson } from './api';
+import { buildStorageUrl, fetchJson, fetchJsonList } from './api';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -8,18 +8,6 @@ const STATUS_LABELS = {
   'En Proceso': 'En progreso',
   Completada: 'Completada',
 };
-
-function asArray(value) {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  if (Array.isArray(value?.data)) {
-    return value.data;
-  }
-
-  return [];
-}
 
 function firstDefined(...values) {
   return values.find(
@@ -96,11 +84,11 @@ function normalizeTask(rawTask) {
 }
 
 export async function getTasks(token) {
-  const data = await fetchJson('/api/tasks', {
+  const list = await fetchJsonList('/api/tasks', {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  }, 'las tareas');
 
-  return asArray(data).map(normalizeTask);
+  return list.map(normalizeTask);
 }
 
 export async function updateTaskStatus(token, taskId, status) {

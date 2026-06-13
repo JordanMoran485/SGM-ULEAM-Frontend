@@ -68,6 +68,45 @@ export function buildStorageUrl(path = '') {
   return `${STORAGE_BASE_URL}/${normalizedPath}`;
 }
 
+// El servidor de desarrollo puede devolver respuestas vacías o truncadas bajo
+// peticiones concurrentes; coercer eso a [] haría que las pantallas vacíen sus
+// listas. Se lanza error para que el caller conserve el estado anterior.
+export function requireJsonList(data, resourceLabel) {
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+      ? data.data
+      : null;
+
+  if (!list) {
+    const error = new Error(`Respuesta inválida del servidor al cargar ${resourceLabel}.`);
+    error.data = data;
+    throw error;
+  }
+
+  return list;
+}
+
+// `php artisan serve` en Windows atiende una petición a la vez; bajo
+// concurrencia puede responder 200 con cuerpo vacío. Un reintento corto
+// suele bastar para obtener la lista real.
+export async function fetchJsonList(path, options, resourceLabel, retries = 1) {
+  for (;;) {
+    const data = await fetchJson(path, options);
+
+    try {
+      return requireJsonList(data, resourceLabel);
+    } catch (error) {
+      if (retries <= 0) {
+        throw error;
+      }
+
+      retries -= 1;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  }
+}
+
 export async function fetchJson(path, options = {}) {
   const url = buildApiUrl(path);
   const headers = {

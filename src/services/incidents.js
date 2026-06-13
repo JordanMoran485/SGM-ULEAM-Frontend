@@ -1,4 +1,4 @@
-import { buildApiUrl, buildStorageUrl, fetchJson } from './api';
+import { buildApiUrl, buildStorageUrl, fetchJsonList } from './api';
 
 const STATUS_LABELS = {
   pending: 'Pendiente',
@@ -154,11 +154,11 @@ export function buildIncidentStats(incidents) {
 }
 
 export async function getIncidents(token) {
-  const data = await fetchJson('/api/incidents', {
+  const list = await fetchJsonList('/api/incidents', {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  }, 'las incidencias');
 
-  return asArray(data).map(normalizeIncident);
+  return list.map(normalizeIncident);
 }
 
 function appendIfPresent(formData, key, value) {

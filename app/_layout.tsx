@@ -37,10 +37,12 @@ function navigateFromNotificationData(router: ReturnType<typeof useRouter>, data
   const incidentId = data?.incident_id as string | undefined;
   const type       = data?.type        as string | undefined;
 
-  if (taskId) {
+  if (incidentId && type === 'incident') {
+    router.push({ pathname: '/IncidentDetail', params: { id: incidentId, type: 'incident' } });
+  } else if (taskId) {
     router.push({ pathname: '/IncidentDetail', params: { id: taskId, type: 'task' } });
   } else if (incidentId) {
-    router.push({ pathname: '/IncidentDetail', params: { id: incidentId, type: type || 'incident' } });
+    router.push({ pathname: '/IncidentDetail', params: { id: incidentId, type: 'incident' } });
   }
 }
 
