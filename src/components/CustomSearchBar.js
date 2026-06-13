@@ -1,31 +1,68 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
-import { SearchBar } from '@rneui/themed';
+import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export function CustomSearchBar({ onChangeText, value, placeholder }) {
-   
-
     return (
-        <View style={styles.view}>
-            <SearchBar
+        <View style={styles.wrapper}>
+            <View style={styles.iconBox}>
+                <MaterialCommunityIcons name="magnify" size={18} color="#4A6CF7" />
+            </View>
+            <TextInput
+                style={styles.input}
                 placeholder={placeholder}
-                onChangeText={onChangeText}
+                placeholderTextColor="#B0B7D3"
                 value={value}
-                platform="android"
-                 containerStyle={styles.searchBar}
-                 //showLoading={true}
-           
+                onChangeText={onChangeText}
+                returnKeyType="search"
+                clearButtonMode="never"
             />
+            {value.length > 0 && (
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => onChangeText("")}
+                    style={styles.clearBtn}
+                >
+                    <MaterialCommunityIcons name="close-circle" size={18} color="#B0B7D3" />
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
+
 const styles = StyleSheet.create({
-   
-    searchBar: {
-        backgroundColor: "transparent",
-        borderTopWidth: 0,
-        borderBottomWidth: 0,
-        paddingHorizontal: 15,
-        marginBottom: 10,
+    wrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#ffffff",
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        gap: 10,
+        shadowColor: "#4A6CF7",
+        shadowOpacity: 0.10,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 3,
+    },
+    iconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: "#E8EDFF",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+    },
+    input: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: "500",
+        color: "#1A1F36",
+        paddingVertical: 0,
+    },
+    clearBtn: {
+        flexShrink: 0,
+        padding: 2,
     },
 });

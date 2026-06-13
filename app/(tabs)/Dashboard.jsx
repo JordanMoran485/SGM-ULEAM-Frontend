@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Alert, Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -133,6 +133,88 @@ const skStyles = StyleSheet.create({
     pill: { height: 24, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.45)' },
 });
 
+const CARD_W   = Dimensions.get('window').width - 40;
+const CHART_H  = 108;
+const DOT_R    = 5;
+const DOT_D    = DOT_R * 2;
+const USABLE_W = CARD_W - 32; // chartBars paddingHorizontal 16×2
+
+function WeekLineChart({ data, max, todayIndex }) {
+    const pts = data.map((d, i) => ({
+        cx: DOT_R + (i / (data.length - 1)) * (USABLE_W - DOT_D),
+        cy: CHART_H - (d.count > 0 ? Math.max((d.count / max) * (CHART_H - DOT_D), DOT_R * 2) : DOT_R),
+        count: d.count,
+        label: d.label,
+    }));
+
+    return (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+            <View style={{ height: CHART_H + 28 }}>
+                {/* Líneas conectoras */}
+                {pts.slice(0, -1).map((pt, i) => {
+                    const nx  = pts[i + 1].cx;
+                    const ny  = pts[i + 1].cy;
+                    const dx  = nx - pt.cx;
+                    const dy  = ny - pt.cy;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    const ang = Math.atan2(dy, dx) * 180 / Math.PI;
+                    return (
+                        <View key={i} style={{
+                            position: 'absolute',
+                            width: len, height: 2,
+                            backgroundColor: '#C7D2FE',
+                            borderRadius: 1,
+                            left: (pt.cx + nx) / 2 - len / 2,
+                            top:  (pt.cy + ny) / 2 - 1,
+                            transform: [{ rotate: `${ang}deg` }],
+                        }} />
+                    );
+                })}
+                {/* Conteos sobre los puntos */}
+                {pts.map((pt, i) => pt.count === 0 ? null : (
+                    <Text key={`c${i}`} style={{
+                        position: 'absolute',
+                        left: pt.cx - 10, top: pt.cy - DOT_R - 15,
+                        width: 20, textAlign: 'center',
+                        color: i === todayIndex ? '#2D3FE0' : '#4A6CF7',
+                        fontSize: 10, fontWeight: '800',
+                    }}>{pt.count}</Text>
+                ))}
+                {/* Puntos */}
+                {pts.map((pt, i) => {
+                    const isToday = i === todayIndex;
+                    return (
+                        <View key={`d${i}`} style={{
+                            position: 'absolute',
+                            left: pt.cx - DOT_R, top: pt.cy - DOT_R,
+                            width: DOT_D, height: DOT_D, borderRadius: DOT_R,
+                            backgroundColor: isToday ? '#2D3FE0' : '#7B9FFF',
+                            borderWidth: 2, borderColor: '#ffffff',
+                            shadowColor: '#2D3FE0', shadowOpacity: isToday ? 0.35 : 0,
+                            shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+                            elevation: isToday ? 4 : 0,
+                            zIndex: 2,
+                        }} />
+                    );
+                })}
+                {/* Etiquetas de día */}
+                {pts.map((pt, i) => {
+                    const isToday = i === todayIndex;
+                    return (
+                        <Text key={`l${i}`} style={{
+                            position: 'absolute',
+                            left: pt.cx - 10, top: CHART_H + 8,
+                            width: 20, textAlign: 'center',
+                            color: isToday ? '#2D3FE0' : '#8F95B2',
+                            fontSize: 10, fontWeight: isToday ? '800' : '700',
+                        }}>{data[i].label}</Text>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
 // ─── screen ─────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -154,6 +236,8 @@ export default function Dashboard() {
         }
     }, [incidentsLoaded, refreshIncidents, tasksLoaded, refreshTasks]);
 
+    const [chartSlide, setChartSlide]       = React.useState(0);
+    const [taskChartType, setTaskChartType] = React.useState('bar');
     const shimmer = useRef(new Animated.Value(0)).current;
     useEffect(() => {
         Animated.loop(
@@ -220,6 +304,31 @@ export default function Dashboard() {
     }, [tasks, todayIndex, ey, em, ed]);
 
     const chartMax = Math.max(...weeklyData.map((d) => d.count), 1);
+
+    const { incWeeklyData, incWeekTotal } = useMemo(() => {
+        const labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+        const counts = [0, 0, 0, 0, 0, 0, 0];
+        const weekDays = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(Date.UTC(ey, em - 1, ed + i - todayIndex, 12));
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        });
+        incidents.forEach((inc) => {
+            const raw = String(inc.createdAt || '');
+            if (!raw) return;
+            const s = /Z|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : raw + 'Z';
+            const d = new Date(s);
+            if (isNaN(d)) return;
+            const ds = toEcuadorStr(d);
+            const idx = weekDays.indexOf(ds);
+            if (idx !== -1) counts[idx]++;
+        });
+        return {
+            incWeeklyData: labels.map((label, i) => ({ label, count: counts[i] })),
+            incWeekTotal:  counts.reduce((a, b) => a + b, 0),
+        };
+    }, [incidents, todayIndex, ey, em, ed]);
+
+    const incChartMax = Math.max(...incWeeklyData.map((d) => d.count), 1);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -299,65 +408,126 @@ export default function Dashboard() {
 
             </LinearGradient>
 
-            {/* ── Gráfica semanal ── */}
-            <View style={styles.section}>
-                {!tasksLoaded ? (
-                    <SkeletonChartCard shimmer={shimmer} />
+            {/* ── Gráficas (carrusel) ── */}
+            <View style={{ paddingTop: 24 }}>
+                {!tasksLoaded || !incidentsLoaded ? (
+                    <View style={{ paddingHorizontal: 20 }}>
+                        <SkeletonChartCard shimmer={shimmer} />
+                    </View>
                 ) : (
-                    <View style={styles.chartCard}>
-                        {/* Header */}
-                        <View style={styles.chartHeader}>
-                            <View>
-                                <Text style={styles.chartEyebrow}>Reportes Solucionados</Text>
-                                <View style={styles.chartNumRow}>
-                                    <Text style={styles.chartBigNum}>{weekTotal}</Text>
-                                    <Text style={styles.chartWeekLabel}>esta semana</Text>
+                    <>
+                        <ScrollView
+                            horizontal
+                            pagingEnabled={false}
+                            snapToInterval={CARD_W + 12}
+                            decelerationRate="fast"
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.carouselContent}
+                            onScroll={(e) => {
+                                const x = e.nativeEvent.contentOffset.x;
+                                setChartSlide(x > CARD_W / 2 ? 1 : 0);
+                            }}
+                            scrollEventThrottle={16}
+                        >
+                            {/* ── Card 1: Tareas solucionadas ── */}
+                            <View style={[styles.chartCard, { width: CARD_W }]}>
+                                <View style={styles.chartHeader}>
+                                    <View>
+                                        <Text style={styles.chartEyebrow}>Tareas Solucionadas</Text>
+                                        <View style={styles.chartNumRow}>
+                                            <Text style={styles.chartBigNum}>{weekTotal}</Text>
+                                            <Text style={styles.chartWeekLabel}>esta semana</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity
+                                        activeOpacity={0.75}
+                                        onPress={() => setTaskChartType(t => t === 'bar' ? 'line' : 'bar')}
+                                        style={[styles.chartIconBox, taskChartType === 'line' && styles.chartIconBoxActive]}
+                                    >
+                                        <MaterialCommunityIcons
+                                            name={taskChartType === 'bar' ? 'chart-bell-curve' : 'chart-bar'}
+                                            size={24}
+                                            color={taskChartType === 'line' ? '#ffffff' : '#2D3FE0'}
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                                {taskChartType === 'bar' ? (
+                                    <View style={styles.chartBars}>
+                                        {weeklyData.map((day, index) => {
+                                            const isToday = index === todayIndex;
+                                            const barH = day.count > 0 ? Math.max((day.count / chartMax) * 108, 8) : 4;
+                                            const dayFull = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][index];
+                                            return (
+                                                <View key={day.label} style={styles.chartBarCol}>
+                                                    <View style={styles.chartTodayLabelBox}>
+                                                        {isToday && <Text style={styles.chartTodayLabel}>{dayFull}</Text>}
+                                                    </View>
+                                                    <View style={styles.chartTrack}>
+                                                        <View style={[styles.chartBar, { height: barH }, isToday ? styles.chartBarToday : styles.chartBarIdle]}>
+                                                            {day.count > 0 && barH >= 24 && (
+                                                                <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#4A6CF7' }]}>
+                                                                    {day.count}
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                    </View>
+                                                    <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>{day.label}</Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                ) : (
+                                    <WeekLineChart data={weeklyData} max={chartMax} todayIndex={todayIndex} />
+                                )}
+                            </View>
+
+                            {/* ── Card 2: Incidencias reportadas ── */}
+                            <View style={[styles.chartCard, { width: CARD_W }]}>
+                                <View style={styles.chartHeader}>
+                                    <View>
+                                        <Text style={styles.chartEyebrow}>Incidencias Reportadas</Text>
+                                        <View style={styles.chartNumRow}>
+                                            <Text style={[styles.chartBigNum, { color: '#06B6D4' }]}>{incWeekTotal}</Text>
+                                            <Text style={styles.chartWeekLabel}>esta semana</Text>
+                                        </View>
+                                    </View>
+                                    <View style={[styles.chartIconBox, { backgroundColor: '#E8F8FB' }]}>
+                                        <MaterialCommunityIcons name="clipboard-alert-outline" size={24} color="#06B6D4" />
+                                    </View>
+                                </View>
+                                <View style={styles.chartBars}>
+                                    {incWeeklyData.map((day, index) => {
+                                        const isToday = index === todayIndex;
+                                        const barH = day.count > 0 ? Math.max((day.count / incChartMax) * 108, 8) : 4;
+                                        const dayFull = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][index];
+                                        return (
+                                            <View key={day.label} style={styles.chartBarCol}>
+                                                <View style={styles.chartTodayLabelBox}>
+                                                    {isToday && <Text style={[styles.chartTodayLabel, { color: '#06B6D4' }]}>{dayFull}</Text>}
+                                                </View>
+                                                <View style={styles.chartTrack}>
+                                                    <View style={[styles.chartBar, { height: barH }, isToday ? styles.chartBarTodayCyan : styles.chartBarIdleCyan]}>
+                                                        {day.count > 0 && barH >= 24 && (
+                                                            <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#06B6D4' }]}>
+                                                                {day.count}
+                                                            </Text>
+                                                        )}
+                                                    </View>
+                                                </View>
+                                                <Text style={[styles.chartLabel, isToday && { color: '#06B6D4', fontWeight: '800' }]}>{day.label}</Text>
+                                            </View>
+                                        );
+                                    })}
                                 </View>
                             </View>
-                            <View style={styles.chartIconBox}>
-                                <MaterialCommunityIcons name="chart-bar" size={24} color="#2D3FE0" />
-                            </View>
-                        </View>
+                        </ScrollView>
 
-                        {/* Barras */}
-                        <View style={styles.chartBars}>
-                            {weeklyData.map((day, index) => {
-                                const isToday = index === todayIndex;
-                                const barH = day.count > 0
-                                    ? Math.max((day.count / chartMax) * 108, 8)
-                                    : 4;
-                                const dayFull = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][index];
-                                return (
-                                    <View key={day.label} style={styles.chartBarCol}>
-                                        <View style={styles.chartTodayLabelBox}>
-                                            {isToday && (
-                                                <Text style={styles.chartTodayLabel}>{dayFull}</Text>
-                                            )}
-                                        </View>
-                                        <View style={styles.chartTrack}>
-                                            <View style={[
-                                                styles.chartBar,
-                                                { height: barH },
-                                                isToday ? styles.chartBarToday : styles.chartBarIdle,
-                                            ]}>
-                                                {day.count > 0 && barH >= 24 && (
-                                                    <Text style={[
-                                                        styles.chartBarCount,
-                                                        { color: isToday ? '#ffffff' : '#4A6CF7' },
-                                                    ]}>
-                                                        {day.count}
-                                                    </Text>
-                                                )}
-                                            </View>
-                                        </View>
-                                        <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>
-                                            {day.label}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
+                        {/* Dots */}
+                        <View style={styles.carouselDots}>
+                            <View style={[styles.carouselDot, chartSlide === 0 && styles.carouselDotActive]} />
+                            <View style={[styles.carouselDot, chartSlide === 1 && styles.carouselDotActiveCyan]} />
                         </View>
-                    </View>
+                    </>
                 )}
             </View>
 
@@ -536,6 +706,31 @@ const styles = StyleSheet.create({
     },
     sectionLinkText: { color: '#4A6CF7', fontSize: 12, fontWeight: '700' },
 
+    // Carrusel
+    carouselContent: {
+        paddingHorizontal: 20,
+        gap: 12,
+    },
+    carouselDots: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 12,
+    },
+    carouselDot: {
+        width: 6, height: 6, borderRadius: 3,
+        backgroundColor: '#D1D9F0',
+    },
+    carouselDotActive: {
+        width: 18, height: 6, borderRadius: 3,
+        backgroundColor: '#2D3FE0',
+    },
+    carouselDotActiveCyan: {
+        width: 18, height: 6, borderRadius: 3,
+        backgroundColor: '#06B6D4',
+    },
+
     // Chart
     chartCard: {
         backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden',
@@ -562,6 +757,11 @@ const styles = StyleSheet.create({
     chartIconBox: {
         backgroundColor: '#E8EDFF', borderRadius: 12, padding: 10,
         alignItems: 'center', justifyContent: 'center',
+    },
+    chartIconBoxActive: {
+        backgroundColor: '#2D3FE0',
+        shadowColor: '#2D3FE0', shadowOpacity: 0.30, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 }, elevation: 4,
     },
     chartBars: {
         flexDirection: 'row', gap: 8,
@@ -592,6 +792,14 @@ const styles = StyleSheet.create({
     chartBarToday: {
         backgroundColor: '#2D3FE0',
         shadowColor: '#2D3FE0', shadowOpacity: 0.30, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    },
+    chartBarIdleCyan: {
+        backgroundColor: '#CFFAFE',
+    },
+    chartBarTodayCyan: {
+        backgroundColor: '#06B6D4',
+        shadowColor: '#06B6D4', shadowOpacity: 0.30, shadowRadius: 8,
         shadowOffset: { width: 0, height: 4 }, elevation: 4,
     },
     chartLabel: {

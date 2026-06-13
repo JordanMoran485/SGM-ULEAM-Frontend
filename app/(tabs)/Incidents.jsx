@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Alert, FlatList, ScrollView, StyleSheet,
-    Text, TouchableOpacity, View,
+    Alert, FlatList, Platform, ScrollView, StyleSheet,
+    Text, TouchableOpacity, UIManager, View,
 } from "react-native";
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -10,58 +14,43 @@ import { CustomSearchBar } from "../../src/components/CustomSearchBar";
 import { useAppContext } from "../../src/context/AppContext";
 
 const FILTERS = [
-    { key: "all",         label: "Todas" },
-    { key: "pending",     label: "Pendiente" },
-    { key: "in_progress", label: "En progreso" },
-    { key: "completed",   label: "Completada" },
+    { key: "all",       label: "Todas" },
+    { key: "pending",   label: "Pendiente" },
+    { key: "revisada",  label: "Revisada" },
+    { key: "rechazada", label: "Rechazada" },
 ];
 
-function getStatusConfig(status, approvalStatus) {
-    if (approvalStatus === 'Rechazada') return {
-        stripe: '#F43F5E',
-        badgeBg: '#FFE4E8', badgeText: '#F43F5E',
-        iconBg: '#FFE4E8',  iconColor: '#F43F5E',
-        label: 'Rechazada',
-    };
-    if (status === 'completed') return {
-        stripe: '#22C55E',
-        badgeBg: '#DCFCE7', badgeText: '#16A34A',
-        iconBg: '#DCFCE7',  iconColor: '#22C55E',
-        label: 'Completada',
-    };
-    if (status === 'in_progress') return {
-        stripe: '#4A6CF7',
-        badgeBg: '#E8EDFF', badgeText: '#2D3FE0',
-        iconBg: '#E8EDFF',  iconColor: '#4A6CF7',
-        label: 'En progreso',
-    };
-    if (approvalStatus === 'Aceptada') return {
-        stripe: '#06B6D4',
-        badgeBg: '#E8F8FB', badgeText: '#06B6D4',
-        iconBg: '#E8F8FB',  iconColor: '#06B6D4',
-        label: 'Revisada',
-    };
-    return {
-        stripe: '#F59E0B',
-        badgeBg: '#FEF3C7', badgeText: '#D97706',
-        iconBg: '#FEF3C7',  iconColor: '#F59E0B',
-        label: 'Pendiente',
-    };
-}
-
-const SPACE_TYPES = new Set(['Baño', 'Aula', 'Pasillo', 'Exteriores', 'Escaleras']);
+const SPACE_TYPES = new Set(["Baño", "Aula", "Pasillo", "Exteriores", "Escaleras"]);
 
 const SPACE_TYPE_ICONS = {
-    'Baño':       'toilet',
-    'Aula':       'school-outline',
-    'Pasillo':    'door-open',
-    'Exteriores': 'tree-outline',
-    'Escaleras':  'stairs',
+    "Baño":       "toilet",
+    "Aula":       "school-outline",
+    "Pasillo":    "door-open",
+    "Exteriores": "tree-outline",
+    "Escaleras":  "stairs",
 };
+
+function getEffectiveStatus(status, approvalStatus) {
+    if (approvalStatus === "Rechazada") return "rechazada";
+    if (status === "completed")         return "completed";
+    if (status === "in_progress")       return "in_progress";
+    if (approvalStatus === "Aceptada")  return "revisada";
+    return "pending";
+}
+
+function getStatusConfig(effectiveStatus) {
+    switch (effectiveStatus) {
+        case "rechazada":   return { stripe: "#F43F5E", badgeBg: "#FFE4E8", badgeText: "#F43F5E", iconBg: "#FFE4E8", iconColor: "#F43F5E", label: "Rechazada" };
+        case "completed":   return { stripe: "#22C55E", badgeBg: "#DCFCE7", badgeText: "#16A34A", iconBg: "#DCFCE7", iconColor: "#22C55E", label: "Completada" };
+        case "in_progress": return { stripe: "#4A6CF7", badgeBg: "#E8EDFF", badgeText: "#2D3FE0", iconBg: "#E8EDFF", iconColor: "#4A6CF7", label: "En progreso" };
+        case "revisada":    return { stripe: "#06B6D4", badgeBg: "#E8F8FB", badgeText: "#06B6D4", iconBg: "#E8F8FB", iconColor: "#06B6D4", label: "Revisada" };
+        default:            return { stripe: "#F59E0B", badgeBg: "#FEF3C7", badgeText: "#D97706", iconBg: "#FEF3C7", iconColor: "#F59E0B", label: "Pendiente" };
+    }
+}
 
 function parseLocation(location) {
     if (!location) return { spaceType: null, address: null };
-    const sep = location.indexOf(' - ');
+    const sep = location.indexOf(" - ");
     if (sep !== -1) {
         const candidate = location.slice(0, sep);
         if (SPACE_TYPES.has(candidate)) {
@@ -74,52 +63,73 @@ function parseLocation(location) {
 function formatRelative(value) {
     if (!value) return "";
     const diff = (Date.now() - new Date(value).getTime()) / 1000;
-    if (diff < 60) return "Ahora";
-    if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+    if (diff < 60)    return "Ahora";
+    if (diff < 3600)  return `hace ${Math.floor(diff / 60)}m`;
     if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
     return new Intl.DateTimeFormat("es-EC", { day: "numeric", month: "short" }).format(new Date(value));
 }
 
-function FilterTab({ label, active, onPress }) {
+function StatusTab({ label, active, count, onPress }) {
     if (active) {
         return (
-            <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.filterTabWrapper}>
+            <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.tabWrapper}>
                 <LinearGradient
                     colors={["#2D3FE0", "#4A6CF7"]}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={styles.filterTabActive}
+                    style={styles.tabActive}
                 >
-                    <Text style={styles.filterTabActiveText}>{label}</Text>
+                    <Text style={styles.tabActiveText}>{label}</Text>
+                    {count !== undefined && (
+                        <View style={styles.tabBadge}>
+                            <Text style={styles.tabBadgeText}>{count}</Text>
+                        </View>
+                    )}
                 </LinearGradient>
             </TouchableOpacity>
         );
     }
     return (
-        <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.filterTabWrapper, styles.filterTabInactive]}>
-            <Text style={styles.filterTabInactiveText}>{label}</Text>
+        <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.tabWrapper, styles.tabInactive]}>
+            <Text style={styles.tabInactiveText}>{label}</Text>
+            {count !== undefined && count > 0 && (
+                <View style={styles.tabBadgeInactive}>
+                    <Text style={styles.tabBadgeInactiveText}>{count}</Text>
+                </View>
+            )}
         </TouchableOpacity>
     );
 }
 
 export default function IncidentsScreen() {
-    const [search, setSearch] = useState("");
+    const [search, setSearch]           = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
-    const [refreshing, setRefreshing] = useState(false);
+    const [refreshing, setRefreshing]   = useState(false);
+
     const router = useRouter();
-    const { incidents, refreshIncidents, incidentsLoaded, stats } = useAppContext();
+    const { incidents, refreshIncidents, incidentsLoaded } = useAppContext();
 
     useEffect(() => {
         if (!incidentsLoaded) {
-            refreshIncidents().catch((error) => {
-                Alert.alert("Error al cargar datos", error.message);
-            });
+            refreshIncidents().catch((error) => Alert.alert("Error al cargar datos", error.message));
         }
     }, [incidentsLoaded, refreshIncidents]);
+
+    const counts = useMemo(() => {
+        const result = { all: incidents.length, pending: 0, in_progress: 0, revisada: 0, rechazada: 0, completed: 0 };
+        incidents.forEach((item) => {
+            const ef = getEffectiveStatus(item.status, item.approvalStatus);
+            if (result[ef] !== undefined) result[ef] += 1;
+        });
+        return result;
+    }, [incidents]);
 
     const filteredItems = useMemo(() => {
         const query = search.trim().toUpperCase();
         return incidents
-            .filter((item) => statusFilter === "all" || item.status === statusFilter)
+            .filter((item) => {
+                if (statusFilter === "all") return true;
+                return getEffectiveStatus(item.status, item.approvalStatus) === statusFilter;
+            })
             .filter((item) => {
                 if (!query) return true;
                 const searchable = [
@@ -154,27 +164,41 @@ export default function IncidentsScreen() {
                 <View style={styles.decCircle1} />
                 <View style={styles.decCircle2} />
 
-                <View style={styles.heroTop}>
-                    <Text style={styles.heroEyebrow}>Seguimiento</Text>
-                    <Text style={styles.heroTitle}>Incidencias</Text>
+                {/* Fila superior */}
+                <View style={{ position: "absolute", top: 18, left: "8%", transform: [{ rotate: "-10deg" }] }}>
+                    <MaterialCommunityIcons name="camera-outline" size={44} color="rgba(255,255,255,0.08)" />
+                </View>
+                <View style={{ position: "absolute", top: 10, left: "40%", transform: [{ rotate: "14deg" }] }}>
+                    <MaterialCommunityIcons name="clipboard-alert-outline" size={64} color="rgba(255,255,255,0.08)" />
+                </View>
+                <View style={{ position: "absolute", top: 20, right: "10%", transform: [{ rotate: "-16deg" }] }}>
+                    <MaterialCommunityIcons name="camera-plus-outline" size={50} color="rgba(255,255,255,0.07)" />
                 </View>
 
-                {/* Stats integrados en el hero */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statPill}>
-                        <Text style={styles.statNumber}>{stats.total ?? 0}</Text>
-                        <Text style={styles.statLabel}>Total</Text>
+                {/* Fila inferior */}
+                <View style={{ position: "absolute", bottom: 14, left: "6%", transform: [{ rotate: "18deg" }] }}>
+                    <MaterialCommunityIcons name="clipboard-list-outline" size={56} color="rgba(255,255,255,0.07)" />
+                </View>
+                <View style={{ position: "absolute", bottom: 10, left: "42%", transform: [{ rotate: "-8deg" }] }}>
+                    <MaterialCommunityIcons name="camera-outline" size={52} color="rgba(255,255,255,0.07)" />
+                </View>
+                <View style={{ position: "absolute", bottom: -28, right: -18, transform: [{ rotate: "15deg" }] }}>
+                    <MaterialCommunityIcons name="clipboard-text-outline" size={148} color="rgba(255,255,255,0.07)" />
+                </View>
+
+                <View style={styles.heroRow}>
+                    <View>
+                        <Text style={styles.heroEyebrow}>Seguimiento</Text>
+                        <Text style={styles.heroTitle}>Incidencias</Text>
                     </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statPill}>
-                        <Text style={styles.statNumber}>{stats.pending ?? 0}</Text>
-                        <Text style={styles.statLabel}>Pendientes</Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statPill}>
-                        <Text style={styles.statNumber}>{stats.inProgress ?? 0}</Text>
-                        <Text style={styles.statLabel}>Activas</Text>
-                    </View>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => router.push("/ReportIncident")}
+                        style={styles.heroNewBtn}
+                    >
+                        <MaterialCommunityIcons name="plus" size={16} color="#ffffff" />
+                        <Text style={styles.heroNewBtnText}>Nueva</Text>
+                    </TouchableOpacity>
                 </View>
             </LinearGradient>
 
@@ -187,43 +211,28 @@ export default function IncidentsScreen() {
                 />
             </View>
 
-            {/* ── Filtros ── */}
+            {/* ── Tabs de estado ── */}
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterRow}
+                contentContainerStyle={styles.tabsRow}
+                style={styles.tabsScroll}
             >
                 {FILTERS.map((f) => (
-                    <FilterTab
+                    <StatusTab
                         key={f.key}
                         label={f.label}
                         active={statusFilter === f.key}
+                        count={f.key === "all" ? counts.all : counts[f.key]}
                         onPress={() => setStatusFilter(f.key)}
                     />
                 ))}
             </ScrollView>
 
-            {/* ── Header de sección ── */}
-            <View style={styles.sectionRow}>
-                <View>
-                    <Text style={styles.sectionTitle}>Listado general</Text>
-                    <Text style={styles.sectionMeta}>{filteredItems.length} resultados</Text>
-                </View>
-                <TouchableOpacity
-                    onPress={() => router.push("/ReportIncident")}
-                    activeOpacity={0.85}
-                    style={styles.newBtnWrapper}
-                >
-                    <LinearGradient
-                        colors={["#2D3FE0", "#4A6CF7"]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={styles.newBtn}
-                    >
-                        <MaterialCommunityIcons name="plus" size={15} color="#fff" />
-                        <Text style={styles.newBtnText}>Nueva</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </View>
+            {/* ── Contador de resultados ── */}
+            {search.trim() !== "" && (
+                <Text style={styles.resultsCount}>{filteredItems.length} resultado{filteredItems.length !== 1 ? "s" : ""}</Text>
+            )}
         </>
     );
 
@@ -237,7 +246,8 @@ export default function IncidentsScreen() {
             onRefresh={refreshScreen}
             ListHeaderComponent={ListHeader}
             renderItem={({ item }) => {
-                const sc = getStatusConfig(item.status, item.approvalStatus);
+                const effective = getEffectiveStatus(item.status, item.approvalStatus);
+                const sc = getStatusConfig(effective);
                 const { spaceType, address } = parseLocation(item.location);
                 return (
                     <TouchableOpacity
@@ -250,7 +260,11 @@ export default function IncidentsScreen() {
                     >
                         <View style={[styles.stripe, { backgroundColor: sc.stripe }]} />
                         <View style={[styles.cardIconBox, { backgroundColor: sc.iconBg }]}>
-                            <MaterialCommunityIcons name={SPACE_TYPE_ICONS[spaceType] ?? 'alert-circle-outline'} size={22} color={sc.iconColor} />
+                            <MaterialCommunityIcons
+                                name={SPACE_TYPE_ICONS[spaceType] ?? "alert-circle-outline"}
+                                size={22}
+                                color={sc.iconColor}
+                            />
                         </View>
                         <View style={styles.cardInfo}>
                             <View style={styles.cardTopRow}>
@@ -265,9 +279,9 @@ export default function IncidentsScreen() {
                                     <Text style={[styles.cardTagText, { color: sc.badgeText }]}>{sc.label}</Text>
                                 </View>
                                 {spaceType && (
-                                    <View style={[styles.cardTag, { backgroundColor: '#E8EDFF', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+                                    <View style={styles.cardSpaceTag}>
                                         <MaterialCommunityIcons name="map-marker-outline" size={11} color="#4A6CF7" />
-                                        <Text style={[styles.cardTagText, { color: '#4A6CF7' }]}>{spaceType}</Text>
+                                        <Text style={styles.cardSpaceTagText}>{spaceType}</Text>
                                     </View>
                                 )}
                             </View>
@@ -287,16 +301,10 @@ export default function IncidentsScreen() {
                         <MaterialCommunityIcons name="clipboard-text-off-outline" size={36} color="rgba(255,255,255,0.9)" />
                     </LinearGradient>
                     <Text style={styles.emptyTitle}>Sin resultados</Text>
-                    <Text style={styles.emptyText}>
-                        Prueba con otro filtro o actualiza la lista.
-                    </Text>
+                    <Text style={styles.emptyText}>Prueba con otro filtro o actualiza la lista.</Text>
                     {statusFilter !== "all" && (
-                        <TouchableOpacity
-                            onPress={() => { setStatusFilter("all"); setSearch(""); }}
-                            activeOpacity={0.85}
-                            style={styles.emptyAction}
-                        >
-                            <Text style={styles.emptyActionText}>Limpiar filtros</Text>
+                        <TouchableOpacity onPress={() => setStatusFilter("all")} activeOpacity={0.85} style={styles.emptyAction}>
+                            <Text style={styles.emptyActionText}>Ver todas</Text>
                         </TouchableOpacity>
                     )}
                 </View>
@@ -316,32 +324,25 @@ const styles = StyleSheet.create({
 
     // Hero
     hero: {
-        paddingTop: 64,
-        paddingBottom: 24,
+        paddingTop: 72,
+        paddingBottom: 44,
         paddingHorizontal: 24,
         overflow: "hidden",
-        position: "relative",
     },
     decCircle1: {
-        position: "absolute",
-        top: -40,
-        right: -40,
-        width: 160,
-        height: 160,
-        borderRadius: 80,
+        position: "absolute", top: -40, right: -40,
+        width: 160, height: 160, borderRadius: 80,
         backgroundColor: "rgba(255,255,255,0.08)",
     },
     decCircle2: {
-        position: "absolute",
-        bottom: -30,
-        left: -20,
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+        position: "absolute", bottom: -30, left: -20,
+        width: 100, height: 100, borderRadius: 50,
         backgroundColor: "rgba(255,255,255,0.06)",
     },
-    heroTop: {
-        marginBottom: 20,
+    heroRow: {
+        flexDirection: "row",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
     },
     heroEyebrow: {
         color: "rgba(255,255,255,0.65)",
@@ -356,68 +357,76 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: "800",
     },
-
-    // Stats en hero
-    statsRow: {
+    heroNewBtn: {
         flexDirection: "row",
-        backgroundColor: "rgba(255,255,255,0.14)",
-        borderRadius: 16,
-        padding: 14,
         alignItems: "center",
+        gap: 6,
+        backgroundColor: "rgba(255,255,255,0.18)",
+        borderRadius: 999,
+        paddingHorizontal: 16,
+        paddingVertical: 9,
+        marginBottom: 4,
     },
-    statPill: {
-        flex: 1,
-        alignItems: "center",
-    },
-    statNumber: {
+    heroNewBtnText: {
         color: "#ffffff",
-        fontSize: 22,
-        fontWeight: "800",
-        lineHeight: 26,
-    },
-    statLabel: {
-        color: "rgba(255,255,255,0.65)",
-        fontSize: 11,
-        fontWeight: "600",
-        marginTop: 2,
-    },
-    statDivider: {
-        width: 1,
-        height: 32,
-        backgroundColor: "rgba(255,255,255,0.20)",
+        fontSize: 13,
+        fontWeight: "700",
     },
 
     // Search
     searchWrapper: {
         paddingHorizontal: 20,
-        paddingTop: 20,
+        paddingTop: 16,
         paddingBottom: 4,
     },
 
-    // Filtros
-    filterRow: {
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        gap: 10,
-        flexDirection: "row",
+    // Tabs
+    tabsScroll: {
+        marginTop: 12,
     },
-    filterTabWrapper: {
+    tabsRow: {
+        flexDirection: "row",
+        paddingHorizontal: 20,
+        gap: 8,
+        paddingBottom: 4,
+    },
+    tabWrapper: {
         borderRadius: 999,
         overflow: "hidden",
     },
-    filterTabActive: {
-        paddingHorizontal: 18,
+    tabActive: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 16,
         paddingVertical: 9,
         borderRadius: 999,
     },
-    filterTabActiveText: {
+    tabActiveText: {
         color: "#ffffff",
         fontSize: 13,
         fontWeight: "700",
     },
-    filterTabInactive: {
+    tabBadge: {
+        backgroundColor: "rgba(255,255,255,0.25)",
+        borderRadius: 999,
+        minWidth: 20,
+        height: 20,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 5,
+    },
+    tabBadgeText: {
+        color: "#ffffff",
+        fontSize: 10,
+        fontWeight: "800",
+    },
+    tabInactive: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
         backgroundColor: "#ffffff",
-        paddingHorizontal: 18,
+        paddingHorizontal: 16,
         paddingVertical: 9,
         shadowColor: "#4A6CF7",
         shadowOpacity: 0.08,
@@ -425,50 +434,37 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         elevation: 2,
     },
-    filterTabInactiveText: {
+    tabInactiveText: {
         color: "#8F95B2",
         fontSize: 13,
         fontWeight: "600",
     },
-
-    // Sección
-    sectionRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+    tabBadgeInactive: {
+        backgroundColor: "#E8EDFF",
+        borderRadius: 999,
+        minWidth: 20,
+        height: 20,
         alignItems: "center",
-        paddingHorizontal: 20,
-        marginBottom: 16,
+        justifyContent: "center",
+        paddingHorizontal: 5,
     },
-    sectionTitle: {
-        color: "#1A1F36",
-        fontSize: 17,
+    tabBadgeInactiveText: {
+        color: "#4A6CF7",
+        fontSize: 10,
         fontWeight: "700",
     },
-    sectionMeta: {
+
+    // Contador
+    resultsCount: {
         color: "#8F95B2",
         fontSize: 12,
         fontWeight: "500",
-        marginTop: 2,
-    },
-    newBtnWrapper: {
-        borderRadius: 999,
-        overflow: "hidden",
-    },
-    newBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 14,
-        paddingVertical: 9,
-        borderRadius: 999,
-    },
-    newBtnText: {
-        color: "#ffffff",
-        fontSize: 13,
-        fontWeight: "700",
+        paddingHorizontal: 24,
+        marginTop: 12,
+        marginBottom: 4,
     },
 
-    // Card
+    // Cards
     card: {
         position: "relative",
         flexDirection: "row",
@@ -477,7 +473,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#ffffff",
         borderRadius: 20,
         marginHorizontal: 20,
-        marginBottom: 12,
+        marginTop: 16,
         padding: 16,
         paddingLeft: 20,
         overflow: "hidden",
@@ -539,58 +535,48 @@ const styles = StyleSheet.create({
         textTransform: "uppercase",
         letterSpacing: 0.5,
     },
-    cardLocationChip: {
+    cardSpaceTag: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 3,
+        gap: 4,
+        backgroundColor: "#E8EDFF",
+        borderRadius: 6,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
     },
-    cardLocationChipText: {
-        color: "#8F95B2",
-        fontSize: 11,
-        fontWeight: "500",
+    cardSpaceTagText: {
+        color: "#4A6CF7",
+        fontSize: 10,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
 
     // Empty
     emptyWrapper: {
         alignItems: "center",
         paddingHorizontal: 32,
-        paddingTop: 32,
+        paddingTop: 48,
         gap: 16,
     },
     emptyDecoCard: {
-        width: 100,
-        height: 100,
-        borderRadius: 28,
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        marginBottom: 8,
-        shadowColor: "#2D3FE0",
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 6 },
+        width: 100, height: 100, borderRadius: 28,
+        alignItems: "center", justifyContent: "center",
+        overflow: "hidden", marginBottom: 8,
+        shadowColor: "#2D3FE0", shadowOpacity: 0.25,
+        shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
         elevation: 6,
     },
     emptyDecoCircle: {
-        position: "absolute",
-        top: -20,
-        right: -20,
-        width: 70,
-        height: 70,
-        borderRadius: 35,
+        position: "absolute", top: -20, right: -20,
+        width: 70, height: 70, borderRadius: 35,
         backgroundColor: "rgba(255,255,255,0.12)",
     },
     emptyTitle: {
-        color: "#1A1F36",
-        fontSize: 20,
-        fontWeight: "800",
-        textAlign: "center",
+        color: "#1A1F36", fontSize: 20, fontWeight: "800", textAlign: "center",
     },
     emptyText: {
-        color: "#8F95B2",
-        fontSize: 14,
-        lineHeight: 21,
-        textAlign: "center",
+        color: "#8F95B2", fontSize: 14, lineHeight: 21, textAlign: "center",
     },
     emptyAction: {
         backgroundColor: "#E8EDFF",
@@ -600,8 +586,6 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     emptyActionText: {
-        color: "#4A6CF7",
-        fontSize: 13,
-        fontWeight: "700",
+        color: "#4A6CF7", fontSize: 13, fontWeight: "700",
     },
 });

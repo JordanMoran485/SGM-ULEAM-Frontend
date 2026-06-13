@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from '../src/context/AppContext';
@@ -47,6 +48,19 @@ function navigateFromNotificationData(router: ReturnType<typeof useRouter>, data
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const NavBar = require('expo-navigation-bar');
+      NavBar.setVisibilityAsync('visible');
+      NavBar.setBackgroundColorAsync('#ffffff');
+      NavBar.setButtonStyleAsync('dark');
+    } catch {
+      // módulo no disponible en Expo Go — funciona en build nativo
+    }
+  }, []);
+
   return (
     <SafeAreaProvider>
       <AppProvider>
