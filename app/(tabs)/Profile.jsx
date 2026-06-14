@@ -23,7 +23,6 @@ export default function Profile() {
         supervisor: 'Supervisor',
         conserje: 'Conserje',
     }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
-    const isActive = user?.active_state !== false;
     const facultyLabel = user?.facultad?.display_name || user?.facultad?.name
         || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
 
@@ -136,18 +135,24 @@ export default function Profile() {
                     <Text style={styles.heroBadgeText}>{userRole}</Text>
                 </View>
 
-                <View style={styles.heroStatusRow}>
-                    <View style={[styles.statusDot, isActive ? styles.dotGreen : styles.dotRed]} />
-                    <Text style={styles.heroStatusText}>
-                        {isActive ? 'Cuenta activa' : 'Cuenta desactivada'}
-                    </Text>
-                </View>
             </LinearGradient>
 
             {/* ── Mi información ── */}
             <Text style={styles.sectionLabel}>Mi información</Text>
 
             <View style={styles.card}>
+                <View style={styles.listRow}>
+                    <View style={styles.iconBox}>
+                        <MaterialCommunityIcons name="account-outline" size={18} color="#4A6CF7" />
+                    </View>
+                    <View style={styles.listContent}>
+                        <Text style={styles.listLabel}>Nombres completos</Text>
+                        <Text style={styles.listValue}>{displayName}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.divider} />
+
                 <View style={styles.listRow}>
                     <View style={styles.iconBox}>
                         <MaterialCommunityIcons name="email-outline" size={18} color="#4A6CF7" />
@@ -170,42 +175,7 @@ export default function Profile() {
                     </View>
                 </View>
 
-                <View style={styles.divider} />
-
-                <View style={styles.listRow}>
-                    <View style={[styles.iconBox, isActive ? styles.iconBoxGreen : styles.iconBoxRed]}>
-                        <MaterialCommunityIcons
-                            name={isActive ? 'shield-check-outline' : 'shield-off-outline'}
-                            size={18}
-                            color={isActive ? '#22C55E' : '#F43F5E'}
-                        />
-                    </View>
-                    <View style={styles.listContent}>
-                        <Text style={styles.listLabel}>Estado de cuenta</Text>
-                        <View style={[styles.statusBadge, isActive ? styles.badgeGreen : styles.badgeRed]}>
-                            <Text style={[styles.statusBadgeText, isActive ? styles.badgeTextGreen : styles.badgeTextRed]}>
-                                {isActive ? 'Activa' : 'Desactivada'}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
             </View>
-
-            {/* ── Ajustes ── */}
-            <Text style={styles.sectionLabel}>Ajustes</Text>
-
-            <TouchableOpacity style={styles.card} onPress={handlePickProfileImage} activeOpacity={0.85}>
-                <View style={styles.listRow}>
-                    <View style={[styles.iconBox, styles.iconBoxCyan]}>
-                        <MaterialCommunityIcons name="camera-outline" size={18} color="#22D3EE" />
-                    </View>
-                    <View style={styles.listContent}>
-                        <Text style={styles.listLabel}>Foto de perfil</Text>
-                        <Text style={styles.listValue}>Toca para cambiar tu foto</Text>
-                    </View>
-                    <MaterialCommunityIcons name="chevron-right" size={20} color="#8F95B2" />
-                </View>
-            </TouchableOpacity>
 
             {/* ── Cerrar sesión ── */}
             <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutWrapper}>
@@ -324,24 +294,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
-    heroStatusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    statusDot: {
-        width: 7,
-        height: 7,
-        borderRadius: 4,
-    },
-    dotGreen: { backgroundColor: '#22C55E' },
-    dotRed:   { backgroundColor: '#F43F5E' },
-    heroStatusText: {
-        color: 'rgba(255,255,255,0.75)',
-        fontSize: 13,
-        fontWeight: '600',
-    },
-
     // Section
     sectionLabel: {
         color: '#8F95B2',
@@ -382,9 +334,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    iconBoxGreen: { backgroundColor: '#F0FDF4' },
-    iconBoxRed:   { backgroundColor: '#FFF1F2' },
-    iconBoxCyan:  { backgroundColor: '#E8F8FB' },
     listContent: {
         flex: 1,
         gap: 3,
@@ -406,20 +355,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F3FF',
         marginHorizontal: 16,
     },
-
-    // Status badge
-    statusBadge: {
-        alignSelf: 'flex-start',
-        borderRadius: 999,
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        marginTop: 2,
-    },
-    badgeGreen: { backgroundColor: '#F0FDF4' },
-    badgeRed:   { backgroundColor: '#FFF1F2' },
-    statusBadgeText: { fontSize: 12, fontWeight: '700' },
-    badgeTextGreen: { color: '#22C55E' },
-    badgeTextRed:   { color: '#F43F5E' },
 
     // Logout
     logoutWrapper: {

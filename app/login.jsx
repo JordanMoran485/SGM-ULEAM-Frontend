@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator, Alert, Keyboard, ScrollView, StyleSheet,
-  Text, TouchableOpacity, TouchableWithoutFeedback, View,
+  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform,
+  ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -81,8 +81,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.screen}>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -209,8 +212,8 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </View>
-    </TouchableWithoutFeedback>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
