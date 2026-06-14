@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const CARD_WIDTH = Dimensions.get('window').width - 40;
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -74,10 +76,11 @@ export default function IncidentDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { incidents, tasks, incidentsLoaded, tasksLoaded, refreshIncidents, refreshTasks, updateTaskState, user } = useAppContext();
-    const [imageFailed, setImageFailed]       = useState(false);
-    const [isRecovering, setIsRecovering]     = useState(false);
-    const [isSubmitting, setIsSubmitting]     = useState(false);
-    const [photoFullscreen, setPhotoFullscreen] = useState(false);
+    const [imageFailed, setImageFailed]         = useState(false);
+    const [isRecovering, setIsRecovering]       = useState(false);
+    const [isSubmitting, setIsSubmitting]       = useState(false);
+    const [fullscreenIndex, setFullscreenIndex] = useState(null);
+    const [activeSlide, setActiveSlide]         = useState(0);
     const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
@@ -143,6 +146,7 @@ export default function IncidentDetail() {
     };
 
     const imageUri    = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
+    const images      = (incident?.images?.length ? incident.images : (imageUri ? [imageUri] : [])).filter(Boolean);
     const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
     const sc          = getStatusConfig(incident?.status, incident?.approvalStatus);
     const userRole    = Array.isArray(user?.roles) ? user.roles[0]?.name : user?.role;
@@ -188,19 +192,49 @@ export default function IncidentDetail() {
                 </View>
             </LinearGradient>
 
-            {/* ── Imagen (solo incidencias) ── */}
+            {/* ── Imagen(es) (solo incidencias) ── */}
             {recordType === 'incident' && (
-                <View style={s.imageCard}>
-                    {imageSource ? (
-                        <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)}>
-                            <Image
-                                source={imageSource}
-                                style={s.image}
-                                resizeMode="cover"
-                                onError={() => setImageFailed(true)}
-                            />
-                        </TouchableOpacity>
-                    ) : (
+                images.length > 0 ? (
+                    <>
+                        <ScrollView
+                            horizontal
+                            pagingEnabled
+                            showsHorizontalScrollIndicator={false}
+                            scrollEventThrottle={16}
+                            contentContainerStyle={s.carouselContent}
+                            style={s.carouselScroll}
+                            onScroll={(e) => {
+                                const index = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + 16));
+                                setActiveSlide(index);
+                            }}
+                        >
+                            {images.map((uri, i) => (
+                                <TouchableOpacity
+                                    key={i}
+                                    activeOpacity={0.9}
+                                    style={s.imageCard}
+                                    onPress={() => setFullscreenIndex(i)}
+                                >
+                                    <Image
+                                        source={{ uri }}
+                                        style={s.image}
+                                        resizeMode="cover"
+                                        onError={() => i === 0 && setImageFailed(true)}
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+
+                        {images.length > 1 && (
+                            <View style={s.dotsRow}>
+                                {images.map((_, i) => (
+                                    <View key={i} style={activeSlide === i ? s.dotActive : s.dotInactive} />
+                                ))}
+                            </View>
+                        )}
+                    </>
+                ) : (
+                    <View style={s.imageCard}>
                         <View style={s.imageFallback}>
                             <LinearGradient
                                 colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
@@ -213,8 +247,8 @@ export default function IncidentDetail() {
                             <Text style={s.imageFallbackTitle}>Sin evidencia visual</Text>
                             <Text style={s.imageFallbackSub}>No se adjuntó imagen a este reporte.</Text>
                         </View>
-                    )}
-                </View>
+                    </View>
+                )
             )}
 
             {/* ── Info ── */}
@@ -344,10 +378,10 @@ export default function IncidentDetail() {
             <View style={{ height: 32 }} />
         </ScrollView>
 
-        <Modal visible={photoFullscreen} transparent animationType="fade" statusBarTranslucent>
+        <Modal visible={fullscreenIndex !== null} transparent animationType="fade" statusBarTranslucent>
             <StatusBar hidden />
-            <Pressable style={s.modalOverlay} onPress={() => setPhotoFullscreen(false)}>
-                <Image source={{ uri: imageUri }} style={s.modalImage} resizeMode="contain" />
+            <Pressable style={s.modalOverlay} onPress={() => setFullscreenIndex(null)}>
+                <Image source={{ uri: images[fullscreenIndex] }} style={s.modalImage} resizeMode="contain" />
                 <View style={s.modalCloseBtn}>
                     <MaterialCommunityIcons name="close" size={20} color="#ffffff" />
                 </View>
@@ -396,14 +430,23 @@ const s = StyleSheet.create({
     },
     statusBadgeText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
 
-    // Image
+    // Image carrusel
+    carouselScroll: {
+        marginTop: 20,
+    },
+    carouselContent: {
+        paddingHorizontal: 20,
+        gap: 16,
+    },
     imageCard: {
-        marginHorizontal: 20, marginTop: 20,
-        backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden',
+        width: CARD_WIDTH,
+        backgroundColor: '#ffffff',
+        borderRadius: 20,
+        overflow: 'hidden',
         shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12,
         shadowOffset: { width: 0, height: 2 }, elevation: 3,
     },
-    image: { width: '100%', height: 260 },
+    image: { width: CARD_WIDTH, height: 260 },
     imageFallback: {
         height: 180, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24,
     },
@@ -519,6 +562,27 @@ const s = StyleSheet.create({
         gap: 8, paddingVertical: 16,
     },
     primaryBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+
+    // Dots carrusel
+    dotsRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 10,
+    },
+    dotActive: {
+        width: 20,
+        height: 6,
+        borderRadius: 999,
+        backgroundColor: '#4A6CF7',
+    },
+    dotInactive: {
+        width: 6,
+        height: 6,
+        borderRadius: 999,
+        backgroundColor: '#C9D4FF',
+    },
 
     // Modal imagen completa
     modalOverlay: {

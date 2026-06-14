@@ -72,6 +72,12 @@ function getImage(rawItem) {
   );
 }
 
+function getImages(rawItem) {
+  const img1 = getImage(rawItem);
+  const img2 = buildStorageUrl(firstDefined(rawItem?.image2_url, rawItem?.image2));
+  return [img1, img2].filter(Boolean);
+}
+
 function normalizeTask(rawTask) {
   const status = getStatusKey(rawTask?.status);
   const image = getImage(rawTask);
@@ -113,6 +119,7 @@ function normalizeIncident(rawIncident) {
     status,
     statusLabel: STATUS_LABELS[rawIncident?.status] || STATUS_LABELS[status] || 'Pendiente',
     image,
+    images: getImages(rawIncident),
     createdAt: firstDefined(rawIncident?.created_at, rawIncident?.createdAt),
     updatedAt: firstDefined(rawIncident?.updated_at, rawIncident?.updatedAt),
     startAt: latestTask?.startAt || null,
@@ -192,6 +199,9 @@ export async function createIncident(token, payload) {
 
   const uploadFile = buildUploadFile(payload?.image);
   if (uploadFile) formData.append('image', uploadFile);
+
+  const uploadFile2 = buildUploadFile(payload?.image2);
+  if (uploadFile2) formData.append('image2', uploadFile2);
 
   const response = await fetch(buildApiUrl('/api/incidents'), {
     method: 'POST',

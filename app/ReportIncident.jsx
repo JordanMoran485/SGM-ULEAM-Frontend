@@ -66,26 +66,34 @@ export default function ReportIncidentScreen() {
     const [title, setTitle]           = useState('');
     const [location, setLocation]     = useState('');
     const [description, setDescription] = useState('');
-    const [photo, setPhoto]           = useState(null);
-    const [photoFullscreen, setPhotoFullscreen] = useState(false);
-    const [loading, setLoading]       = useState(false);
-    const [errors, setErrors]         = useState({});
-    const [focused, setFocused]       = useState('');
+    const [photos, setPhotos]             = useState([null, null]);
+    const [fullscreenIndex, setFullscreenIndex] = useState(null);
+    const [loading, setLoading]           = useState(false);
+    const [errors, setErrors]             = useState({});
+    const [focused, setFocused]           = useState('');
     const [locationType, setLocationType] = useState(null);
 
     const clearError = (field) => setErrors((e) => ({ ...e, [field]: undefined }));
+
+    const setPhoto = (index, asset) => {
+        setPhotos((prev) => {
+            const next = [...prev];
+            next[index] = asset;
+            return next;
+        });
+    };
 
     const validate = () => {
         const next = {};
         if (!title.trim())                     next.title       = 'El asunto es obligatorio.';
         if (!location.trim() && !locationType) next.location   = 'La ubicación es obligatoria.';
         if (!description.trim())               next.description = 'La descripción es obligatoria.';
-        if (!photo)                            next.photo       = 'Debes adjuntar una foto de la incidencia.';
+        if (!photos[0])                        next.photo       = 'Debes adjuntar al menos una foto.';
         setErrors(next);
         return Object.keys(next).length === 0;
     };
 
-    const handleTakePhoto = async () => {
+    const handleTakePhoto = async (index) => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
             Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara.');
@@ -95,12 +103,12 @@ export default function ReportIncidentScreen() {
             mediaTypes: ['images'], quality: 0.75,
         });
         if (!result.canceled && result.assets?.[0]) {
-            setPhoto(normalizePickedAsset(result.assets[0]));
-            clearError('photo');
+            setPhoto(index, normalizePickedAsset(result.assets[0]));
+            if (index === 0) clearError('photo');
         }
     };
 
-    const handlePickFromLibrary = async () => {
+    const handlePickFromLibrary = async (index) => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
             Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos.');
@@ -110,8 +118,8 @@ export default function ReportIncidentScreen() {
             mediaTypes: ['images'], quality: 0.75,
         });
         if (!result.canceled && result.assets?.[0]) {
-            setPhoto(normalizePickedAsset(result.assets[0]));
-            clearError('photo');
+            setPhoto(index, normalizePickedAsset(result.assets[0]));
+            if (index === 0) clearError('photo');
         }
     };
 
@@ -126,7 +134,8 @@ export default function ReportIncidentScreen() {
                 title: title.trim(),
                 location: locationFull,
                 description: description.trim(),
-                image: photo,
+                image: photos[0],
+                image2: photos[1] ?? null,
             });
             await refreshIncidents();
             Alert.alert('Incidencia reportada', 'La incidencia fue enviada correctamente.');
@@ -176,13 +185,13 @@ export default function ReportIncidentScreen() {
             {/* ── Formulario ── */}
             <View style={styles.card}>
 
-                {/* Foto */}
+                {/* Foto 1 — obligatoria */}
                 <View style={styles.photoSection}>
-                    <Text style={styles.fieldLabel}>Foto de evidencia</Text>
+                    <Text style={styles.fieldLabel}>Foto de evidencia <Text style={{ color: '#F43F5E' }}>*</Text></Text>
 
-                    {photo ? (
-                        <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)}>
-                            <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
+                    {photos[0] ? (
+                        <TouchableOpacity activeOpacity={0.9} onPress={() => setFullscreenIndex(0)}>
+                            <Image source={{ uri: photos[0].uri }} style={styles.photoPreview} resizeMode="cover" />
                         </TouchableOpacity>
                     ) : (
                         <LinearGradient
@@ -209,7 +218,7 @@ export default function ReportIncidentScreen() {
                         <TouchableOpacity
                             activeOpacity={0.85}
                             style={[styles.photoBtn, { overflow: 'hidden' }]}
-                            onPress={handleTakePhoto}
+                            onPress={() => handleTakePhoto(0)}
                         >
                             <LinearGradient
                                 colors={['#2D3FE0', '#4A6CF7']}
@@ -218,7 +227,7 @@ export default function ReportIncidentScreen() {
                             >
                                 <MaterialCommunityIcons name="camera" size={16} color="#fff" />
                                 <Text style={styles.photoBtnTextPrimary}>
-                                    {photo ? 'Tomar otra' : 'Tomar foto'}
+                                    {photos[0] ? 'Cambiar' : 'Tomar foto'}
                                 </Text>
                             </LinearGradient>
                         </TouchableOpacity>
@@ -226,12 +235,66 @@ export default function ReportIncidentScreen() {
                         <TouchableOpacity
                             activeOpacity={0.85}
                             style={styles.photoBtnSecondary}
-                            onPress={handlePickFromLibrary}
+                            onPress={() => handlePickFromLibrary(0)}
                         >
                             <MaterialCommunityIcons name="image-outline" size={16} color="#4A6CF7" />
                             <Text style={styles.photoBtnTextSecondary}>Galería</Text>
                         </TouchableOpacity>
                     </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                {/* Foto 2 — opcional */}
+                <View style={styles.photoSection}>
+                    <Text style={styles.fieldLabel}>
+                        Segunda foto <Text style={{ color: '#8F95B2', fontWeight: '500' }}>(opcional)</Text>
+                    </Text>
+
+                    {photos[1] ? (
+                        <TouchableOpacity activeOpacity={0.9} onPress={() => setFullscreenIndex(1)}>
+                            <Image source={{ uri: photos[1].uri }} style={styles.photoPreview} resizeMode="cover" />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            style={styles.photoPlaceholderSecondary}
+                            onPress={() => handleTakePhoto(1)}
+                        >
+                            <View style={styles.photoIconBoxGhost}>
+                                <MaterialCommunityIcons name="camera-plus-outline" size={26} color="#4A6CF7" />
+                            </View>
+                            <Text style={styles.photoPlaceholderSecondaryText}>Agregar segunda foto</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    {photos[1] && (
+                        <View style={styles.photoActions}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={[styles.photoBtn, { overflow: 'hidden' }]}
+                                onPress={() => handleTakePhoto(1)}
+                            >
+                                <LinearGradient
+                                    colors={['#2D3FE0', '#4A6CF7']}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                    style={styles.photoBtnGradient}
+                                >
+                                    <MaterialCommunityIcons name="camera" size={16} color="#fff" />
+                                    <Text style={styles.photoBtnTextPrimary}>Cambiar</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={styles.photoBtnSecondary}
+                                onPress={() => handlePickFromLibrary(1)}
+                            >
+                                <MaterialCommunityIcons name="image-outline" size={16} color="#4A6CF7" />
+                                <Text style={styles.photoBtnTextSecondary}>Galería</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.divider} />
@@ -339,11 +402,11 @@ export default function ReportIncidentScreen() {
 
         {/* ── Modal imagen completa ── */}
 
-        <Modal visible={photoFullscreen} transparent animationType="fade" statusBarTranslucent>
+        <Modal visible={fullscreenIndex !== null} transparent animationType="fade" statusBarTranslucent>
             <StatusBar hidden />
-            <Pressable style={styles.modalOverlay} onPress={() => setPhotoFullscreen(false)}>
+            <Pressable style={styles.modalOverlay} onPress={() => setFullscreenIndex(null)}>
                 <Image
-                    source={{ uri: photo?.uri }}
+                    source={{ uri: photos[fullscreenIndex]?.uri }}
                     style={styles.modalImage}
                     resizeMode="contain"
                 />
@@ -417,6 +480,30 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
     },
     photoPlaceholderText: { color: 'rgba(255,255,255,0.70)', fontSize: 13, fontWeight: '600' },
+    photoPlaceholderSecondary: {
+        height: 120,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: '#C9D4FF',
+        borderStyle: 'dashed',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#F4F6FF',
+    },
+    photoIconBoxGhost: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#E8EDFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    photoPlaceholderSecondaryText: {
+        color: '#4A6CF7',
+        fontSize: 13,
+        fontWeight: '600',
+    },
     photoActions: { flexDirection: 'row', gap: 10 },
     photoBtn: { flex: 1, borderRadius: 14 },
     photoBtnGradient: {
