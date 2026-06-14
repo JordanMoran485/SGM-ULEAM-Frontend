@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -74,9 +74,10 @@ export default function IncidentDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { incidents, tasks, incidentsLoaded, tasksLoaded, refreshIncidents, refreshTasks, updateTaskState, user } = useAppContext();
-    const [imageFailed, setImageFailed]   = useState(false);
-    const [isRecovering, setIsRecovering] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [imageFailed, setImageFailed]       = useState(false);
+    const [isRecovering, setIsRecovering]     = useState(false);
+    const [isSubmitting, setIsSubmitting]     = useState(false);
+    const [photoFullscreen, setPhotoFullscreen] = useState(false);
     const recordType = params.type === 'task' ? 'task' : 'incident';
 
     const incident = useMemo(() => {
@@ -159,6 +160,7 @@ export default function IncidentDetail() {
     }
 
     return (
+        <>
         <ScrollView style={s.container} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
             <Stack.Screen options={{ title: '', headerShown: false }} />
 
@@ -190,12 +192,14 @@ export default function IncidentDetail() {
             {recordType === 'incident' && (
                 <View style={s.imageCard}>
                     {imageSource ? (
-                        <Image
-                            source={imageSource}
-                            style={s.image}
-                            resizeMode="cover"
-                            onError={() => setImageFailed(true)}
-                        />
+                        <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)}>
+                            <Image
+                                source={imageSource}
+                                style={s.image}
+                                resizeMode="cover"
+                                onError={() => setImageFailed(true)}
+                            />
+                        </TouchableOpacity>
                     ) : (
                         <View style={s.imageFallback}>
                             <LinearGradient
@@ -339,6 +343,17 @@ export default function IncidentDetail() {
 
             <View style={{ height: 32 }} />
         </ScrollView>
+
+        <Modal visible={photoFullscreen} transparent animationType="fade" statusBarTranslucent>
+            <StatusBar hidden />
+            <Pressable style={s.modalOverlay} onPress={() => setPhotoFullscreen(false)}>
+                <Image source={{ uri: imageUri }} style={s.modalImage} resizeMode="contain" />
+                <View style={s.modalCloseBtn}>
+                    <MaterialCommunityIcons name="close" size={20} color="#ffffff" />
+                </View>
+            </Pressable>
+        </Modal>
+        </>
     );
 }
 
@@ -388,7 +403,7 @@ const s = StyleSheet.create({
         shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12,
         shadowOffset: { width: 0, height: 2 }, elevation: 3,
     },
-    image: { width: '100%', height: 220 },
+    image: { width: '100%', height: 260 },
     imageFallback: {
         height: 180, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24,
     },
@@ -504,4 +519,27 @@ const s = StyleSheet.create({
         gap: 8, paddingVertical: 16,
     },
     primaryBtnText: { color: '#ffffff', fontSize: 15, fontWeight: '700' },
+
+    // Modal imagen completa
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalImage: {
+        width: '100%',
+        height: '100%',
+    },
+    modalCloseBtn: {
+        position: 'absolute',
+        top: 52,
+        right: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.20)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
