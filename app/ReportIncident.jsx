@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-    Alert, Image, ScrollView, StyleSheet, Text,
-    TextInput, TouchableOpacity, View,
+    Alert, Image, Modal, Pressable, ScrollView, StatusBar,
+    StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -66,6 +66,7 @@ export default function ReportIncidentScreen() {
     const [location, setLocation]     = useState('');
     const [description, setDescription] = useState('');
     const [photo, setPhoto]           = useState(null);
+    const [photoFullscreen, setPhotoFullscreen] = useState(false);
     const [loading, setLoading]       = useState(false);
     const [errors, setErrors]         = useState({});
     const [focused, setFocused]       = useState('');
@@ -90,7 +91,7 @@ export default function ReportIncidentScreen() {
             return;
         }
         const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.75,
+            mediaTypes: ['images'], quality: 0.75,
         });
         if (!result.canceled && result.assets?.[0]) {
             setPhoto(normalizePickedAsset(result.assets[0]));
@@ -105,7 +106,7 @@ export default function ReportIncidentScreen() {
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.75,
+            mediaTypes: ['images'], quality: 0.75,
         });
         if (!result.canceled && result.assets?.[0]) {
             setPhoto(normalizePickedAsset(result.assets[0]));
@@ -137,6 +138,7 @@ export default function ReportIncidentScreen() {
     };
 
     return (
+        <>
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
@@ -174,7 +176,9 @@ export default function ReportIncidentScreen() {
                     <Text style={styles.fieldLabel}>Foto de evidencia</Text>
 
                     {photo ? (
-                        <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
+                        <TouchableOpacity activeOpacity={0.9} onPress={() => setPhotoFullscreen(true)}>
+                            <Image source={{ uri: photo.uri }} style={styles.photoPreview} resizeMode="cover" />
+                        </TouchableOpacity>
                     ) : (
                         <LinearGradient
                             colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
@@ -326,6 +330,23 @@ export default function ReportIncidentScreen() {
                 </TouchableOpacity>
             </View>
         </ScrollView>
+
+        {/* ── Modal imagen completa ── */}
+
+        <Modal visible={photoFullscreen} transparent animationType="fade" statusBarTranslucent>
+            <StatusBar hidden />
+            <Pressable style={styles.modalOverlay} onPress={() => setPhotoFullscreen(false)}>
+                <Image
+                    source={{ uri: photo?.uri }}
+                    style={styles.modalImage}
+                    resizeMode="contain"
+                />
+                <View style={styles.modalCloseBtn}>
+                    <MaterialCommunityIcons name="close" size={20} color="#ffffff" />
+                </View>
+            </Pressable>
+        </Modal>
+        </>
     );
 }
 
@@ -373,7 +394,7 @@ const styles = StyleSheet.create({
 
     // Foto
     photoSection: { gap: 10, marginBottom: 4 },
-    photoPreview: { width: '100%', height: 200, borderRadius: 16 },
+    photoPreview: { width: '100%', height: 260, borderRadius: 16 },
     photoPlaceholder: {
         height: 160, borderRadius: 16, overflow: 'hidden',
         alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -484,6 +505,29 @@ const styles = StyleSheet.create({
     },
     locationLabelActive: {
         color: '#2D3FE0', fontWeight: '700',
+    },
+
+    // Modal imagen completa
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    modalImage: {
+        width: '100%',
+        height: '100%',
+    },
+    modalCloseBtn: {
+        position: 'absolute',
+        top: 52,
+        right: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.20)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
 });
