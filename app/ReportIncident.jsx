@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-    Alert, Image, Modal, Pressable, ScrollView, StatusBar,
+    Alert, Image, KeyboardAvoidingView, Modal, Platform,
+    Pressable, ScrollView, StatusBar,
     StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -139,6 +140,10 @@ export default function ReportIncidentScreen() {
 
     return (
         <>
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
@@ -330,6 +335,7 @@ export default function ReportIncidentScreen() {
                 </TouchableOpacity>
             </View>
         </ScrollView>
+        </KeyboardAvoidingView>
 
         {/* ── Modal imagen completa ── */}
 
