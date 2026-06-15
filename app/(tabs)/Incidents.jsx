@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    FlatList, Platform, ScrollView, StyleSheet,
+    Animated, FlatList, Platform, ScrollView, StyleSheet,
     Text, TouchableOpacity, UIManager, View,
 } from "react-native";
 
@@ -105,6 +105,10 @@ export default function IncidentsScreen() {
     const [search, setSearch]           = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [refreshing, setRefreshing]   = useState(false);
+    const [visibleCount, setVisibleCount]   = useState(10);
+    const [contentHeight, setContentHeight] = useState(1);
+    const [listHeight, setListHeight]       = useState(1);
+    const scrollAnim = useRef(new Animated.Value(0)).current;
 
     const router = useRouter();
     const toast = useToast();
@@ -143,8 +147,14 @@ export default function IncidentsScreen() {
             });
     }, [incidents, search, statusFilter]);
 
+    useEffect(() => { setVisibleCount(10); }, [search, statusFilter]);
+
+    const displayedItems = filteredItems.slice(0, visibleCount);
+    const hasMore        = displayedItems.length < filteredItems.length;
+
     const refreshScreen = async () => {
         setRefreshing(true);
+        setVisibleCount(10);
         setSearch("");
         try {
             await refreshIncidents();
@@ -238,14 +248,42 @@ export default function IncidentsScreen() {
         </>
     );
 
+    const indicatorHeight = Math.max(28, (listHeight / Math.max(contentHeight, 1)) * listHeight);
+    const safeMaxScroll   = Math.max(1, contentHeight - listHeight);
+    const safeMaxY        = Math.max(0, listHeight - indicatorHeight - 16);
+    const indicatorTop    = scrollAnim.interpolate({
+        inputRange:  [0, safeMaxScroll],
+        outputRange: [8, 8 + safeMaxY],
+        extrapolate: 'clamp',
+    });
+    const showMinimap = contentHeight > listHeight + 60;
+
     return (
+        <View style={{ flex: 1 }}>
         <FlatList
             style={styles.container}
             contentContainerStyle={styles.content}
-            data={filteredItems}
+            data={displayedItems}
             keyExtractor={(item) => String(item.id)}
             refreshing={refreshing}
             onRefresh={refreshScreen}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            onEndReached={() => { if (hasMore) setVisibleCount((c) => c + 10); }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={hasMore ? (
+                <View style={styles.footerLoader}>
+                    <MaterialCommunityIcons name="dots-horizontal" size={22} color="#C7D2FE" />
+                </View>
+            ) : null}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: scrollAnim } } }],
+                { useNativeDriver: false }
+            )}
+            onContentSizeChange={(_, h) => setContentHeight(h)}
+            onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
             ListHeaderComponent={ListHeader}
             renderItem={({ item }) => {
                 const effective = getEffectiveStatus(item.status, item.approvalStatus);
@@ -312,6 +350,12 @@ export default function IncidentsScreen() {
                 </View>
             }
         />
+        {showMinimap && (
+            <View style={mm.track} pointerEvents="none">
+                <Animated.View style={[mm.indicator, { height: indicatorHeight, transform: [{ translateY: indicatorTop }] }]} />
+            </View>
+        )}
+        </View>
     );
 }
 
@@ -434,7 +478,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        elevation: 1,
     },
     tabInactiveText: {
         color: "#8F95B2",
@@ -483,7 +527,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.09,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+        elevation: 1,
     },
     stripe: {
         position: "absolute",
@@ -567,7 +611,7 @@ const styles = StyleSheet.create({
         overflow: "hidden", marginBottom: 8,
         shadowColor: "#2D3FE0", shadowOpacity: 0.25,
         shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
-        elevation: 6,
+        elevation: 2,
     },
     emptyDecoCircle: {
         position: "absolute", top: -20, right: -20,
@@ -589,5 +633,28 @@ const styles = StyleSheet.create({
     },
     emptyActionText: {
         color: "#4A6CF7", fontSize: 13, fontWeight: "700",
+    },
+
+    footerLoader: {
+        alignItems: 'center',
+        paddingVertical: 16,
+    },
+});
+
+const mm = StyleSheet.create({
+    track: {
+        position: 'absolute',
+        right: 4,
+        top: 0,
+        bottom: 0,
+        width: 4,
+        backgroundColor: 'rgba(74,108,247,0.10)',
+        borderRadius: 999,
+    },
+    indicator: {
+        width: 4,
+        borderRadius: 999,
+        backgroundColor: '#4A6CF7',
+        opacity: 0.55,
     },
 });

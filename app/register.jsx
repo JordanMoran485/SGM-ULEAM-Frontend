@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator, Keyboard, ScrollView, StyleSheet,
   Text, TouchableOpacity, TouchableWithoutFeedback, View,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    elevation: 2,
   },
   logoDeco: {
     position: 'absolute',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.10,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    elevation: 1,
   },
   row: {
     flexDirection: 'row',

@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { AppState, Platform } from 'react-native';
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -302,7 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return result;
   };
 
-  const refreshIncidents = () => dedupeRequest('incidents', async () => {
+  const refreshIncidents = useCallback(() => dedupeRequest('incidents', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -317,9 +318,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  });
+  }), [token]);
 
-  const refreshTasks = () => dedupeRequest('tasks', async () => {
+  const refreshTasks = useCallback(() => dedupeRequest('tasks', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -334,7 +335,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  });
+  }), [token]);
 
   const updateTaskState = async (taskId: string | number, status: string) => {
     if (!token) {
@@ -356,7 +357,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshNotifications = () => dedupeRequest('notifications', async () => {
+  const refreshNotifications = useCallback(() => dedupeRequest('notifications', async () => {
     if (!token) {
       throw new Error('No hay una sesión activa.');
     }
@@ -371,7 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  });
+  }), [token]);
 
   const markNotificationRead = async (notificationId: string) => {
     if (!token) {
@@ -403,7 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const stats = useMemo<IncidentStats>(() => buildIncidentStats(incidents), [incidents]);
+  const stats = useMemo<IncidentStats>(() => buildIncidentStats(tasks), [tasks]);
   const unreadNotificationsCount = useMemo(
     () => notifications.filter((item) => !item.isRead).length,
     [notifications]

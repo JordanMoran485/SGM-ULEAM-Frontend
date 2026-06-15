@@ -78,37 +78,28 @@ function getImages(rawItem) {
   return [img1, img2].filter(Boolean);
 }
 
-function normalizeTask(rawTask) {
-  const status = getStatusKey(rawTask?.status);
-  const image = getImage(rawTask);
 
+function lightNormalizeTask(rawTask) {
+  const status = getStatusKey(rawTask?.status);
   return {
     id: firstDefined(rawTask?.id, rawTask?.task_id),
     title: firstDefined(rawTask?.title, 'Tarea sin titulo'),
     description: firstDefined(rawTask?.description, ''),
-    location: firstDefined(rawTask?.location, 'Sin ubicacion'),
     status,
     statusLabel: STATUS_LABELS[rawTask?.status] || STATUS_LABELS[status] || 'Pendiente',
-    image,
-    createdAt: firstDefined(rawTask?.created_at, rawTask?.createdAt),
-    updatedAt: firstDefined(rawTask?.updated_at, rawTask?.updatedAt),
+    assignedCleanerName: getPersonName(rawTask?.user, 'Sin asignar'),
     startAt: firstDefined(rawTask?.start_at, rawTask?.startAt),
     endAt: firstDefined(rawTask?.end_at, rawTask?.endAt),
     allDay: Boolean(firstDefined(rawTask?.all_day, rawTask?.allDay, false)),
-    assignedCleanerName: getPersonName(rawTask?.user),
-    assignedCleanerRole: 'Conserje asignado',
     priority: firstDefined(rawTask?.priority, 'Media'),
-    category: firstDefined(rawTask?.category, ''),
     dueDate: firstDefined(rawTask?.due_date, rawTask?.dueDate),
-    userId: firstDefined(rawTask?.user_id, rawTask?.userId),
-    incidentId: firstDefined(rawTask?.incident_id, rawTask?.incidentId),
   };
 }
 
 function normalizeIncident(rawIncident) {
   const status = getStatusKey(rawIncident?.status);
   const image = getImage(rawIncident);
-  const tasks = asArray(rawIncident?.tasks).map(normalizeTask);
+  const tasks = asArray(rawIncident?.tasks).map(lightNormalizeTask);
   const latestTask = tasks[0] || null;
 
   return {

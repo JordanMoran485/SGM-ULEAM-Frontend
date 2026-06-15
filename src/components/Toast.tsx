@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    elevation: 6,
   },
   stripe: {
     width: 4,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
@@ -128,7 +128,7 @@ const skStyles = StyleSheet.create({
     card: {
         backgroundColor: '#ffffff', borderRadius: 20, padding: 18, gap: 12,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08, shadowRadius: 14,
-        shadowOffset: { width: 0, height: 3 }, elevation: 3,
+        shadowOffset: { width: 0, height: 3 }, elevation: 1,
     },
     line: { borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.45)' },
     pill: { height: 24, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.45)' },
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.14,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
+        elevation: 2,
     },
     statIcon: {
         width: 36, height: 36, borderRadius: 18,
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
     chartCard: {
         backgroundColor: '#ffffff', borderRadius: 20, overflow: 'hidden',
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     chartHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
@@ -786,7 +786,7 @@ const styles = StyleSheet.create({
     chartIconBoxActive: {
         backgroundColor: '#2D3FE0',
         shadowColor: '#2D3FE0', shadowOpacity: 0.30, shadowRadius: 8,
-        shadowOffset: { width: 0, height: 3 }, elevation: 4,
+        shadowOffset: { width: 0, height: 3 }, elevation: 2,
     },
     chartBars: {
         flexDirection: 'row', gap: 8,
@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
     chartBarToday: {
         backgroundColor: '#2D3FE0',
         shadowColor: '#2D3FE0', shadowOpacity: 0.30, shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     chartBarIdleCyan: {
         backgroundColor: '#CFFAFE',
@@ -825,7 +825,7 @@ const styles = StyleSheet.create({
     chartBarTodayCyan: {
         backgroundColor: '#06B6D4',
         shadowColor: '#06B6D4', shadowOpacity: 0.30, shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     chartLabel: {
         color: '#8F95B2', fontSize: 10, fontWeight: '700',
@@ -839,14 +839,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 36,
         paddingHorizontal: 24, alignItems: 'center', gap: 12,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     emptyIconBox: {
         width: 72, height: 72, borderRadius: 22,
         alignItems: 'center', justifyContent: 'center',
         overflow: 'hidden', marginBottom: 4,
         shadowColor: '#2D3FE0', shadowOpacity: 0.25,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     emptyIconDeco: {
         position: 'absolute', top: -16, right: -16,
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 8,
         paddingLeft: 16, paddingRight: 16,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-        shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        shadowRadius: 10, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     timelineRow: { flexDirection: 'row', minHeight: 56 },
     timelineLeft: { width: 24, alignItems: 'center', paddingTop: 16 },
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', gap: 14,
         backgroundColor: '#ffffff', borderRadius: 20, padding: 16, marginBottom: 12,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08, shadowRadius: 12,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     activityIconBox: {
         width: 48, height: 48, borderRadius: 14,

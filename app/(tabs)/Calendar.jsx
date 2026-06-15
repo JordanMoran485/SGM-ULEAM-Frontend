@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
         alignItems: "center", justifyContent: "center", gap: 6,
         shadowColor: "#2D3FE0", shadowOpacity: 0.14,
-        shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     statIcon: {
         width: 36, height: 36, borderRadius: 18,
@@ -969,7 +969,7 @@ const styles = StyleSheet.create({
         minWidth: 120, backgroundColor: "#ffffff",
         borderRadius: 20, paddingHorizontal: 16, paddingVertical: 14, gap: 4,
         shadowColor: "#4A6CF7", shadowOpacity: 0.08,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     dayChipLabel: { color: "#1A1F36", fontSize: 15, fontWeight: "800", textTransform: "capitalize" },
     dayChipBadge: {
@@ -987,7 +987,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 20, backgroundColor: "#ffffff", borderRadius: 20,
         padding: 20,
         shadowColor: "#4A6CF7", shadowOpacity: 0.09,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     agendaHeader: {
         flexDirection: "row", justifyContent: "space-between",
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 20, marginTop: 20, marginBottom: 16,
         backgroundColor: "#ffffff", borderRadius: 20, padding: 16,
         shadowColor: "#4A6CF7", shadowOpacity: 0.09,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     weekHeader: {
         flexDirection: "row", alignItems: "center",
@@ -1051,7 +1051,7 @@ const styles = StyleSheet.create({
         borderRadius: 14, paddingVertical: 10, paddingHorizontal: 4,
         alignItems: "center", width: "100%", gap: 4,
         shadowColor: "#2D3FE0", shadowOpacity: 0.25,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
     },
     weekDayNameSelected: {
         color: "#ffffff", fontSize: 9, fontWeight: "700",
@@ -1090,7 +1090,7 @@ const styles = StyleSheet.create({
         width: 34, height: 34, borderRadius: 11,
         alignItems: "center", justifyContent: "center", gap: 2,
         shadowColor: "#2D3FE0", shadowOpacity: 0.22,
-        shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     monthDayNumSelected: { color: "#ffffff", fontSize: 13, fontWeight: "800" },
     monthDotSelected: {
@@ -1115,14 +1115,14 @@ const styles = StyleSheet.create({
         paddingVertical: 40, paddingHorizontal: 24,
         alignItems: "center", gap: 12,
         shadowColor: "#4A6CF7", shadowOpacity: 0.08,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     emptyIconBox: {
         width: 72, height: 72, borderRadius: 22,
         alignItems: "center", justifyContent: "center",
         overflow: "hidden", marginBottom: 4,
         shadowColor: "#2D3FE0", shadowOpacity: 0.25,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 5,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     emptyIconDeco: {
         position: "absolute", top: -16, right: -16,
@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 9,
         borderRadius: 999,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     viewToggleInactiveText: { color: '#8F95B2', fontSize: 13, fontWeight: '600' },
 
@@ -1157,14 +1157,14 @@ const styles = StyleSheet.create({
     weekViewBlock: {
         backgroundColor: '#ffffff', borderRadius: 20, padding: 16,
         shadowColor: '#4A6CF7', shadowOpacity: 0.09,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     weekViewDayHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
     weekViewDayPillToday: {
         width: 44, height: 52, borderRadius: 14,
         alignItems: 'center', justifyContent: 'center', gap: 2,
         shadowColor: '#2D3FE0', shadowOpacity: 0.25,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
     },
     weekViewDayNameToday: { color: '#fff', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
     weekViewDayNumToday: { color: '#fff', fontSize: 18, fontWeight: '800' },

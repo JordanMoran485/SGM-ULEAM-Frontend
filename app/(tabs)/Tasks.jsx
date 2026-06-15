@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -162,6 +162,10 @@ export default function TasksScreen() {
   const [search, setSearch]             = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [refreshing, setRefreshing]     = useState(false);
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [contentHeight, setContentHeight] = useState(1);
+  const [listHeight, setListHeight]       = useState(1);
+  const scrollAnim = useRef(new Animated.Value(0)).current;
 
   const router = useRouter();
   const toast = useToast();
@@ -198,8 +202,14 @@ export default function TasksScreen() {
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   }, [isConserje, search, statusFilter, tasks, user]);
 
+  useEffect(() => { setVisibleCount(10); }, [search, statusFilter]);
+
+  const displayedTasks = visibleTasks.slice(0, visibleCount);
+  const hasMore        = displayedTasks.length < visibleTasks.length;
+
   const refreshScreen = async () => {
     setRefreshing(true);
+    setVisibleCount(10);
     try { await refreshTasks(); }
     catch (err) { toast.error('Error', err?.message || 'No se pudieron actualizar las tareas.'); }
     finally { setRefreshing(false); }
@@ -298,15 +308,43 @@ export default function TasksScreen() {
     </>
   );
 
+  const indicatorHeight = Math.max(28, (listHeight / Math.max(contentHeight, 1)) * listHeight);
+  const safeMaxScroll   = Math.max(1, contentHeight - listHeight);
+  const safeMaxY        = Math.max(0, listHeight - indicatorHeight - 16);
+  const indicatorTop    = scrollAnim.interpolate({
+    inputRange:  [0, safeMaxScroll],
+    outputRange: [8, 8 + safeMaxY],
+    extrapolate: 'clamp',
+  });
+  const showMinimap = contentHeight > listHeight + 60;
+
   return (
+    <View style={{ flex: 1 }}>
     <FlatList
       style={styles.container}
       contentContainerStyle={styles.content}
-      data={visibleTasks}
+      data={displayedTasks}
       keyExtractor={(item) => String(item.id)}
       refreshing={refreshing}
       onRefresh={refreshScreen}
       showsVerticalScrollIndicator={false}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={8}
+      windowSize={5}
+      onEndReached={() => { if (hasMore) setVisibleCount((c) => c + 10); }}
+      onEndReachedThreshold={0.4}
+      scrollEventThrottle={16}
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollAnim } } }],
+        { useNativeDriver: false }
+      )}
+      onContentSizeChange={(_, h) => setContentHeight(h)}
+      onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+      ListFooterComponent={hasMore ? (
+        <View style={styles.footerLoader}>
+          <MaterialCommunityIcons name="dots-horizontal" size={22} color="#C7D2FE" />
+        </View>
+      ) : null}
       ListHeaderComponent={ListHeader}
       renderItem={({ item }) => {
         const sc = getStatusConfig(item.status);
@@ -360,6 +398,12 @@ export default function TasksScreen() {
         </View>
       }
     />
+    {showMinimap && (
+      <View style={mm.track} pointerEvents="none">
+        <Animated.View style={[mm.indicator, { height: indicatorHeight, transform: [{ translateY: indicatorTop }] }]} />
+      </View>
+    )}
+    </View>
   );
 }
 
@@ -431,7 +475,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 9,
     shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-    shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
   tabInactiveText: { color: '#8F95B2', fontSize: 13, fontWeight: '600' },
   tabBadgeInactive: {
@@ -468,7 +512,7 @@ const styles = StyleSheet.create({
     padding: 16, paddingLeft: 20,
     overflow: 'hidden',
     shadowColor: '#4A6CF7', shadowOpacity: 0.09,
-    shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1,
   },
   stripe: {
     position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
@@ -495,7 +539,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     overflow: 'hidden', marginBottom: 8,
     shadowColor: '#2D3FE0', shadowOpacity: 0.25,
-    shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   emptyDecoCircle: {
     position: 'absolute', top: -20, right: -20,
@@ -509,6 +553,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10, marginTop: 4,
   },
   emptyActionText: { color: '#4A6CF7', fontSize: 13, fontWeight: '700' },
+
+  footerLoader: { alignItems: 'center', paddingVertical: 16 },
+});
+
+const mm = StyleSheet.create({
+  track: {
+    position: 'absolute',
+    right: 4,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: 'rgba(74,108,247,0.10)',
+    borderRadius: 999,
+  },
+  indicator: {
+    width: 4,
+    borderRadius: 999,
+    backgroundColor: '#4A6CF7',
+    opacity: 0.55,
+  },
 });
 
 const skStyles = StyleSheet.create({

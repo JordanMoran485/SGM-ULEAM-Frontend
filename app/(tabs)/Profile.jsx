@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import {
     Image, ScrollView, StyleSheet,
     Text, TouchableOpacity, View,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.28,
         shadowRadius: 20,
         shadowOffset: { width: 0, height: 8 },
-        elevation: 8,
+        elevation: 3,
     },
     decCircle1: {
         position: 'absolute',
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
+        elevation: 2,
     },
     avatarImage: {
         width: 104,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 4,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        elevation: 1,
     },
     heroName: {
         color: '#ffffff',
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.10,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+        elevation: 1,
     },
 
     // List row
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
+        elevation: 2,
     },
     logoutBtn: {
         flexDirection: 'row',

@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: -4 },
-    elevation: 16,
+    elevation: 8,
   },
   sheetTitle: {
     color: '#8F95B2',

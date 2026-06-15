@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const CARD_WIDTH = Dimensions.get('window').width - 40;
@@ -271,6 +271,7 @@ export default function IncidentDetail() {
                         />
                     </>
                 )}
+
             </View>
 
             {/* ── Nota de revisión (rechazo o aprobación con comentario) ── */}
@@ -446,7 +447,7 @@ const s = StyleSheet.create({
         borderRadius: 20,
         overflow: 'hidden',
         shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     image: { width: CARD_WIDTH, height: 260 },
     imageFallback: {
@@ -456,7 +457,7 @@ const s = StyleSheet.create({
         width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center',
         overflow: 'hidden', marginBottom: 4,
         shadowColor: '#2D3FE0', shadowOpacity: 0.22, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     imageFallbackDeco: {
         position: 'absolute', top: -14, right: -14, width: 48, height: 48,
@@ -470,7 +471,7 @@ const s = StyleSheet.create({
         marginHorizontal: 20, marginTop: 16, backgroundColor: '#ffffff', borderRadius: 20,
         paddingVertical: 6,
         shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     infoRow: {
         flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16,
@@ -511,13 +512,13 @@ const s = StyleSheet.create({
         backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 36,
         paddingHorizontal: 24, alignItems: 'center', gap: 10,
         shadowColor: '#4A6CF7', shadowOpacity: 0.08, shadowRadius: 12,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     emptyIconBox: {
         width: 64, height: 64, borderRadius: 20,
         alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 4,
         shadowColor: '#2D3FE0', shadowOpacity: 0.22, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     emptyIconDeco: {
         position: 'absolute', top: -14, right: -14, width: 48, height: 48,
@@ -531,7 +532,7 @@ const s = StyleSheet.create({
         marginHorizontal: 20, marginTop: 16, backgroundColor: '#ffffff', borderRadius: 20,
         overflow: 'hidden',
         shadowOpacity: 0.12, shadowRadius: 12,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     reviewNoteStripe: { height: 4 },
     reviewNoteBody: {
@@ -555,7 +556,7 @@ const s = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
         backgroundColor: '#ffffff', borderRadius: 20, paddingVertical: 15,
         shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     secondaryBtnText: { color: '#4A6CF7', fontSize: 15, fontWeight: '700' },
     primaryBtnWrap:   { borderRadius: 20, overflow: 'hidden' },

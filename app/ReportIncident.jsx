@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import {
     Animated, Image, KeyboardAvoidingView, Modal, Platform,
     Pressable, ScrollView, StatusBar,
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 20, marginTop: 20,
         padding: 20,
         shadowColor: '#4A6CF7', shadowOpacity: 0.10,
-        shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
 
     // Foto
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
         gap: 7, paddingVertical: 13, borderRadius: 14,
         backgroundColor: '#E8EDFF',
         shadowColor: '#4A6CF7', shadowOpacity: 0.08,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
     },
     photoBtnTextSecondary: { color: '#4A6CF7', fontSize: 14, fontWeight: '700' },
 
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
     submitBtn: {
         borderRadius: 20, overflow: 'hidden', marginTop: 8,
         shadowColor: '#2D3FE0', shadowOpacity: 0.25,
-        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2,
     },
     submitBtnGradient: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

@@ -28,7 +28,7 @@ function AddIncidentButton() {
           shadowOpacity: 0.40,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 6 },
-          elevation: 10,
+          elevation: 6,
         }}
       >
         <MaterialCommunityIcons name="plus" size={30} color="#ffffff" />
@@ -58,6 +58,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        lazy: true,
         tabBarActiveTintColor: '#4A6CF7',
         tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
