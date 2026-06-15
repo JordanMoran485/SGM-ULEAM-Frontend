@@ -19,6 +19,14 @@ function formatRelativeDate(value) {
     return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(parsed);
 }
 
+function parseWeekLabel(weekLabel) {
+    if (!weekLabel) return null;
+    const part = String(weekLabel).split('–')[0].trim();
+    const [d, m, y] = part.split('/');
+    if (!d || !m || !y) return null;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
 function getNotificationType(notification) {
     if (notification.notificationType === 'incident_rejected')
         return { label: 'Rechazada', bg: '#FFE4E8', text: '#F43F5E', stripe: '#F43F5E' };
@@ -26,6 +34,8 @@ function getNotificationType(notification) {
         return { label: 'Aprobada', bg: '#DCFCE7', text: '#22C55E', stripe: '#22C55E' };
     if (notification.notificationType === 'task_unlinked')
         return { label: 'Desvinculada', bg: '#FFE4E8', text: '#F43F5E', stripe: '#F43F5E' };
+    if (notification.notificationType === 'week_summary')
+        return { label: 'Semana', bg: '#E8EDFF', text: '#2D3FE0', stripe: '#4A6CF7' };
     if (notification.notificationType === 'task_assigned' || notification.taskId)
         return { label: 'Tarea', bg: '#E8EDFF', text: '#2D3FE0', stripe: '#4A6CF7' };
     if (notification.incidentId)
@@ -111,6 +121,15 @@ export default function NotificationsScreen() {
         try {
             if (!notification.isRead) await markNotificationRead(notification.id);
 
+            if (notification.notificationType === 'week_summary') {
+                const weekStart = parseWeekLabel(notification.weekLabel);
+                router.push({
+                    pathname: '/(tabs)/Calendar',
+                    params: { weekMode: '1', ...(weekStart ? { weekStart } : {}) },
+                });
+                return;
+            }
+
             const goToIncident = notification.notificationType === 'incident_accepted'
                 || notification.notificationType === 'incident_rejected';
 
@@ -195,7 +214,7 @@ export default function NotificationsScreen() {
             ) : visible.length > 0 ? (
                 visible.map((notification) => {
                     const type = getNotificationType(notification);
-                    const isNavigable = !!(notification.taskId || notification.incidentId);
+                    const isNavigable = !!(notification.taskId || notification.incidentId || notification.notificationType === 'week_summary');
 
                     return (
                         <TouchableOpacity
@@ -242,7 +261,9 @@ export default function NotificationsScreen() {
                                             activeOpacity={0.85}
                                             style={styles.actionBtn}
                                         >
-                                            <Text style={styles.actionBtnText}>Ver</Text>
+                                            <Text style={styles.actionBtnText}>
+                                                {notification.notificationType === 'week_summary' ? 'Ver semana' : 'Ver'}
+                                            </Text>
                                             <MaterialCommunityIcons name="arrow-right" size={13} color="#4A6CF7" />
                                         </TouchableOpacity>
                                     )}

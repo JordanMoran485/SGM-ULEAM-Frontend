@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
@@ -252,6 +252,8 @@ export default function CalendarScreen() {
     const isConcierge = firstRole(user) === "conserje";
     const [weekAnchor, setWeekAnchor]       = useState(() => toEcuadorStr(new Date()));
     const [isMonthExpanded, setIsMonthExpanded] = useState(false);
+    const { weekMode, weekStart } = useLocalSearchParams();
+    const [viewMode, setViewMode] = useState('day');
 
     useEffect(() => {
         if (!tasksLoaded) {
@@ -301,9 +303,20 @@ export default function CalendarScreen() {
         useCallback(() => {
             const today = toEcuadorStr(new Date());
             setSelectedDate(today);
-            setWeekAnchor(today);
-        }, [])
+            if (weekMode !== '1') {
+                setWeekAnchor(today);
+            }
+        }, [weekMode])
     );
+
+    useEffect(() => {
+        if (weekMode === '1') {
+            setViewMode('week');
+            if (weekStart && /^\d{4}-\d{2}-\d{2}$/.test(String(weekStart))) {
+                setWeekAnchor(String(weekStart));
+            }
+        }
+    }, [weekMode, weekStart]);
 
     const activeSection = useMemo(
         () => sections.find((s) => s.dateKey === selectedDate) ?? null,
@@ -318,7 +331,7 @@ export default function CalendarScreen() {
         const safeName = [user?.name, user?.lastname].filter(Boolean).join("-").toLowerCase()
             .replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,"") || "conserje";
         const dateStamp = toEcuadorStr(new Date());
-        const html = buildScheduleHtml(visibleItems, user, selectedDate);
+        const html = buildScheduleHtml(visibleItems, user, viewMode === 'week' ? weekAnchor : selectedDate);
         setIsExporting(true);
         try {
             if (Platform.OS === "web") { await Print.printAsync({ html }); return; }
@@ -427,7 +440,7 @@ export default function CalendarScreen() {
                                 : setWeekAnchor((prev) => ecAddDays(prev, -7))
                         }
                     >
-                        <MaterialCommunityIcons name="chevron-left" size={20} color="#4A6CF7" />
+                        <MaterialCommunityIcons name="chevron-left" size={24} color="#4A6CF7" />
                     </TouchableOpacity>
 
                     <Text style={styles.weekMonthLabel}>{ecMonthYearLabel(weekAnchor)}</Text>
@@ -440,7 +453,7 @@ export default function CalendarScreen() {
                         >
                             <MaterialCommunityIcons
                                 name={isMonthExpanded ? "calendar-week" : "calendar-month-outline"}
-                                size={17}
+                                size={22}
                                 color={isMonthExpanded ? "#ffffff" : "#4A6CF7"}
                             />
                         </TouchableOpacity>
@@ -453,7 +466,7 @@ export default function CalendarScreen() {
                                     : setWeekAnchor((prev) => ecAddDays(prev, 7))
                             }
                         >
-                            <MaterialCommunityIcons name="chevron-right" size={20} color="#4A6CF7" />
+                            <MaterialCommunityIcons name="chevron-right" size={24} color="#4A6CF7" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -561,76 +574,188 @@ export default function CalendarScreen() {
                 )}
             </View>
 
-            {/* ── Agenda del día seleccionado ── */}
-            {activeSection ? (
-                <View style={styles.agendaCard}>
-                    <View style={styles.agendaHeader}>
-                        <View style={{ gap: 3 }}>
-                            <Text style={styles.agendaEyebrow}>FECHA SELECCIONADA</Text>
-                            <Text style={styles.agendaTitle}>{activeSection.longLabel}</Text>
+            {/* ── Toggle vista ── */}
+            <View style={styles.viewToggleRow}>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => setViewMode('day')} style={styles.viewToggleWrapper}>
+                    {viewMode === 'day' ? (
+                        <LinearGradient colors={['#2D3FE0', '#4A6CF7']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.viewToggleActive}>
+                            <MaterialCommunityIcons name="calendar-today" size={14} color="#fff" />
+                            <Text style={styles.viewToggleActiveText}>Día</Text>
+                        </LinearGradient>
+                    ) : (
+                        <View style={styles.viewToggleInactive}>
+                            <MaterialCommunityIcons name="calendar-today" size={14} color="#8F95B2" />
+                            <Text style={styles.viewToggleInactiveText}>Día</Text>
                         </View>
-                        <View style={styles.agendaCountPill}>
-                            <MaterialCommunityIcons name="calendar-month-outline" size={14} color="#4A6CF7" />
-                            <Text style={styles.agendaCountText}>{activeSection.items.length}</Text>
+                    )}
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} onPress={() => setViewMode('week')} style={styles.viewToggleWrapper}>
+                    {viewMode === 'week' ? (
+                        <LinearGradient colors={['#2D3FE0', '#4A6CF7']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.viewToggleActive}>
+                            <MaterialCommunityIcons name="view-week-outline" size={14} color="#fff" />
+                            <Text style={styles.viewToggleActiveText}>Semana</Text>
+                        </LinearGradient>
+                    ) : (
+                        <View style={styles.viewToggleInactive}>
+                            <MaterialCommunityIcons name="view-week-outline" size={14} color="#8F95B2" />
+                            <Text style={styles.viewToggleInactiveText}>Semana</Text>
                         </View>
-                    </View>
+                    )}
+                </TouchableOpacity>
+            </View>
 
-                    <View style={{ height: 1, backgroundColor: "#F1F3FF", marginBottom: 12 }} />
+            {viewMode === 'week' ? (
+                <View style={styles.weekViewContainer}>
+                    {weekDays.map((dayKey) => {
+                        const daySection = sections.find((s) => s.dateKey === dayKey);
+                        const isToday = dayKey === todayKey;
+                        const hasTasks = Boolean(daySection?.items?.length);
 
-                    {activeSection.items.map((item) => {
-                        const sc = getStatusConfig(item.status);
                         return (
-                            <TouchableOpacity
-                                key={String(item.id)}
-                                activeOpacity={0.85}
-                                style={styles.taskCard}
-                                onPress={() => router.push({ pathname: "/IncidentDetail", params: { id: String(item.id), type: "task" } })}
-                            >
-                                <View style={[styles.taskStripe, { backgroundColor: sc.stripe }]} />
-                                <View style={styles.taskBody}>
-                                    <View style={styles.taskTopRow}>
-                                        <View style={[styles.taskBadge, { backgroundColor: sc.bg }]}>
-                                            <Text style={[styles.taskBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                            <View key={dayKey} style={styles.weekViewBlock}>
+                                <View style={styles.weekViewDayHeader}>
+                                    {isToday ? (
+                                        <LinearGradient
+                                            colors={['#2D3FE0', '#4A6CF7']}
+                                            start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                                            style={styles.weekViewDayPillToday}
+                                        >
+                                            <Text style={styles.weekViewDayNameToday}>{ecDayName(dayKey)}</Text>
+                                            <Text style={styles.weekViewDayNumToday}>{ecDayNum(dayKey)}</Text>
+                                        </LinearGradient>
+                                    ) : (
+                                        <View style={styles.weekViewDayPillIdle}>
+                                            <Text style={styles.weekViewDayName}>{ecDayName(dayKey)}</Text>
+                                            <Text style={styles.weekViewDayNum}>{ecDayNum(dayKey)}</Text>
                                         </View>
+                                    )}
+                                    <View style={{ flex: 1, marginLeft: 10 }}>
+                                        <Text style={styles.weekViewDayLabel} numberOfLines={1}>{formatDateLong(dayKey)}</Text>
                                     </View>
-                                    <Text style={styles.taskTitle} numberOfLines={1}>{item.title}</Text>
-                                    <Text style={styles.taskDesc} numberOfLines={2}>
-                                        {item.description || "Sin descripción registrada."}
-                                    </Text>
-                                    <View style={styles.taskMeta}>
-                                        <View style={styles.taskMetaChip}>
-                                            <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
-                                            <Text style={styles.taskMetaText} numberOfLines={1}>{item.location || "Sin ubicación"}</Text>
+                                    {hasTasks && (
+                                        <View style={styles.weekViewCountPill}>
+                                            <Text style={styles.weekViewCountText}>{daySection.items.length}</Text>
                                         </View>
-                                        <View style={styles.taskMetaChip}>
-                                            <MaterialCommunityIcons name="account-outline" size={12} color="#8F95B2" />
-                                            <Text style={styles.taskMetaText} numberOfLines={1}>{item.assignedCleanerName || "Sin asignar"}</Text>
-                                        </View>
-                                    </View>
+                                    )}
                                 </View>
-                            </TouchableOpacity>
+
+                                {hasTasks ? (
+                                    <View style={styles.weekViewTasks}>
+                                        {daySection.items.map((item) => {
+                                            const sc = getStatusConfig(item.status);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={String(item.id)}
+                                                    activeOpacity={0.85}
+                                                    style={styles.taskCard}
+                                                    onPress={() => router.push({ pathname: '/IncidentDetail', params: { id: String(item.id), type: 'task' } })}
+                                                >
+                                                    <View style={[styles.taskStripe, { backgroundColor: sc.stripe }]} />
+                                                    <View style={styles.taskBody}>
+                                                        <View style={[styles.taskTopRow, { justifyContent: 'space-between' }]}>
+                                                            <View style={[styles.taskBadge, { backgroundColor: sc.bg }]}>
+                                                                <Text style={[styles.taskBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                                                            </View>
+                                                            {item.startAt && !item.allDay && (
+                                                                <Text style={styles.taskTimeLabel}>
+                                                                    {new Date(item.startAt).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                        <Text style={styles.taskTitle} numberOfLines={1}>{item.title}</Text>
+                                                        <View style={styles.taskMeta}>
+                                                            <View style={styles.taskMetaChip}>
+                                                                <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
+                                                                <Text style={styles.taskMetaText} numberOfLines={1}>{item.location || 'Sin ubicación'}</Text>
+                                                            </View>
+                                                        </View>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                ) : (
+                                    <View style={styles.weekViewEmptyDay}>
+                                        <View style={styles.weekViewEmptyLine} />
+                                        <Text style={styles.weekViewEmptyText}>Sin tareas</Text>
+                                        <View style={styles.weekViewEmptyLine} />
+                                    </View>
+                                )}
+                            </View>
                         );
                     })}
                 </View>
             ) : (
-                <View style={styles.emptyCard}>
-                    <LinearGradient
-                        colors={["#2D3FE0", "#4A6CF7", "#7B9FFF"]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={styles.emptyIconBox}
-                    >
-                        <View style={styles.emptyIconDeco} />
-                        <MaterialCommunityIcons name="calendar-blank-outline" size={30} color="rgba(255,255,255,0.9)" />
-                    </LinearGradient>
-                    <Text style={styles.emptyTitle}>
-                        {selectedDate ? "Sin tareas este día" : "Sin tareas programadas"}
-                    </Text>
-                    <Text style={styles.emptyBody}>
-                        {selectedDate && selectedDate !== "Sin fecha"
-                            ? formatDateLong(selectedDate)
-                            : "Solo aparecen tareas que tienen fecha asignada."}
-                    </Text>
-                </View>
+                activeSection ? (
+                    <View style={styles.agendaCard}>
+                        <View style={styles.agendaHeader}>
+                            <View style={{ gap: 3 }}>
+                                <Text style={styles.agendaEyebrow}>FECHA SELECCIONADA</Text>
+                                <Text style={styles.agendaTitle}>{activeSection.longLabel}</Text>
+                            </View>
+                            <View style={styles.agendaCountPill}>
+                                <MaterialCommunityIcons name="calendar-month-outline" size={14} color="#4A6CF7" />
+                                <Text style={styles.agendaCountText}>{activeSection.items.length}</Text>
+                            </View>
+                        </View>
+
+                        <View style={{ height: 1, backgroundColor: "#F1F3FF", marginBottom: 12 }} />
+
+                        {activeSection.items.map((item) => {
+                            const sc = getStatusConfig(item.status);
+                            return (
+                                <TouchableOpacity
+                                    key={String(item.id)}
+                                    activeOpacity={0.85}
+                                    style={styles.taskCard}
+                                    onPress={() => router.push({ pathname: "/IncidentDetail", params: { id: String(item.id), type: "task" } })}
+                                >
+                                    <View style={[styles.taskStripe, { backgroundColor: sc.stripe }]} />
+                                    <View style={styles.taskBody}>
+                                        <View style={styles.taskTopRow}>
+                                            <View style={[styles.taskBadge, { backgroundColor: sc.bg }]}>
+                                                <Text style={[styles.taskBadgeText, { color: sc.color }]}>{sc.label}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.taskTitle} numberOfLines={1}>{item.title}</Text>
+                                        <Text style={styles.taskDesc} numberOfLines={2}>
+                                            {item.description || "Sin descripción registrada."}
+                                        </Text>
+                                        <View style={styles.taskMeta}>
+                                            <View style={styles.taskMetaChip}>
+                                                <MaterialCommunityIcons name="map-marker-outline" size={12} color="#8F95B2" />
+                                                <Text style={styles.taskMetaText} numberOfLines={1}>{item.location || "Sin ubicación"}</Text>
+                                            </View>
+                                            <View style={styles.taskMetaChip}>
+                                                <MaterialCommunityIcons name="account-outline" size={12} color="#8F95B2" />
+                                                <Text style={styles.taskMetaText} numberOfLines={1}>{item.assignedCleanerName || "Sin asignar"}</Text>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                ) : (
+                    <View style={styles.emptyCard}>
+                        <LinearGradient
+                            colors={["#2D3FE0", "#4A6CF7", "#7B9FFF"]}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={styles.emptyIconBox}
+                        >
+                            <View style={styles.emptyIconDeco} />
+                            <MaterialCommunityIcons name="calendar-blank-outline" size={30} color="rgba(255,255,255,0.9)" />
+                        </LinearGradient>
+                        <Text style={styles.emptyTitle}>
+                            {selectedDate ? "Sin tareas este día" : "Sin tareas programadas"}
+                        </Text>
+                        <Text style={styles.emptyBody}>
+                            {selectedDate && selectedDate !== "Sin fecha"
+                                ? formatDateLong(selectedDate)
+                                : "Solo aparecen tareas que tienen fecha asignada."}
+                        </Text>
+                    </View>
+                )
             )}
         </ScrollView>
     );
@@ -795,7 +920,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between", marginBottom: 14,
     },
     weekNavBtn: {
-        width: 32, height: 32, borderRadius: 10,
+        width: 40, height: 40, borderRadius: 12,
         backgroundColor: "#E8EDFF",
         alignItems: "center", justifyContent: "center",
     },
@@ -889,4 +1014,58 @@ const styles = StyleSheet.create({
     },
     emptyTitle: { color: "#1A1F36", fontSize: 16, fontWeight: "800", textAlign: "center" },
     emptyBody:  { color: "#8F95B2", fontSize: 13, lineHeight: 19, textAlign: "center", maxWidth: 240 },
+
+    // View toggle
+    viewToggleRow: {
+        flexDirection: 'row', gap: 8,
+        paddingHorizontal: 20, paddingTop: 4, paddingBottom: 16,
+    },
+    viewToggleWrapper: { borderRadius: 999, overflow: 'hidden' },
+    viewToggleActive: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999,
+    },
+    viewToggleActiveText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    viewToggleInactive: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 9,
+        borderRadius: 999,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.08,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    },
+    viewToggleInactiveText: { color: '#8F95B2', fontSize: 13, fontWeight: '600' },
+
+    // Week view
+    weekViewContainer: { paddingHorizontal: 20, gap: 12, paddingBottom: 20 },
+    weekViewBlock: {
+        backgroundColor: '#ffffff', borderRadius: 20, padding: 16,
+        shadowColor: '#4A6CF7', shadowOpacity: 0.09,
+        shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    },
+    weekViewDayHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+    weekViewDayPillToday: {
+        width: 44, height: 52, borderRadius: 14,
+        alignItems: 'center', justifyContent: 'center', gap: 2,
+        shadowColor: '#2D3FE0', shadowOpacity: 0.25,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+    },
+    weekViewDayNameToday: { color: '#fff', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+    weekViewDayNumToday: { color: '#fff', fontSize: 18, fontWeight: '800' },
+    weekViewDayPillIdle: {
+        width: 44, height: 52, borderRadius: 14, backgroundColor: '#F1F3FF',
+        alignItems: 'center', justifyContent: 'center', gap: 2,
+    },
+    weekViewDayName: { color: '#8F95B2', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+    weekViewDayNum: { color: '#1A1F36', fontSize: 18, fontWeight: '700' },
+    weekViewDayLabel: { color: '#8F95B2', fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
+    weekViewCountPill: {
+        backgroundColor: '#E8EDFF', borderRadius: 999,
+        paddingHorizontal: 10, paddingVertical: 4,
+    },
+    weekViewCountText: { color: '#4A6CF7', fontSize: 12, fontWeight: '800' },
+    weekViewTasks: { gap: 8 },
+    weekViewEmptyDay: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+    weekViewEmptyLine: { flex: 1, height: 1, backgroundColor: '#F1F3FF' },
+    weekViewEmptyText: { color: '#C7D2FE', fontSize: 12, fontWeight: '600' },
+    taskTimeLabel: { color: '#8F95B2', fontSize: 11, fontWeight: '600' },
 });

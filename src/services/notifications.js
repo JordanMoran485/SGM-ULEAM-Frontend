@@ -17,6 +17,7 @@ function normalizeNotification(rawNotification) {
     priority: firstDefined(data?.priority, 'Media'),
     status: firstDefined(data?.status, 'Pendiente'),
     notificationType: firstDefined(data?.notification_type, null),
+    weekLabel: firstDefined(data?.week_label, null),
     readAt: firstDefined(rawNotification?.read_at, rawNotification?.readAt, null),
     createdAt: firstDefined(rawNotification?.created_at, rawNotification?.createdAt, null),
     isRead: Boolean(firstDefined(rawNotification?.read_at, rawNotification?.readAt, null)),
