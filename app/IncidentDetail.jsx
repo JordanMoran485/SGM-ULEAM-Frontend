@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const CARD_WIDTH = Dimensions.get('window').width - 40;
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppContext } from '../src/context/AppContext';
+import { useToast } from '../src/components/Toast';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ export default function IncidentDetail() {
     const params = useLocalSearchParams();
     const router = useRouter();
     const { incidents, tasks, incidentsLoaded, tasksLoaded, refreshIncidents, refreshTasks, updateTaskState, user } = useAppContext();
+    const toast = useToast();
     const [imageFailed, setImageFailed]         = useState(false);
     const [isRecovering, setIsRecovering]       = useState(false);
     const [isSubmitting, setIsSubmitting]       = useState(false);
@@ -139,7 +141,7 @@ export default function IncidentDetail() {
             await updateTaskState(incident.id, nextStatus);
             await Promise.all([refreshTasks(), refreshIncidents()]);
         } catch (e) {
-            Alert.alert('No se pudo actualizar', e?.message || 'Intenta de nuevo.');
+            toast.error('No se pudo actualizar', e?.message || 'Intenta de nuevo.');
         } finally {
             setIsSubmitting(false);
         }

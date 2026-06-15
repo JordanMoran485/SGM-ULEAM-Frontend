@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Alert, Image, KeyboardAvoidingView, Modal, Platform,
+    Image, KeyboardAvoidingView, Modal, Platform,
     Pressable, ScrollView, StatusBar,
     StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -10,6 +10,7 @@ import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createIncident } from '../src/services/incidents';
 import { useAppContext } from '../src/context/AppContext';
+import { useToast } from '../src/components/Toast';
 
 function normalizePickedAsset(asset) {
     if (!asset?.uri) return null;
@@ -62,6 +63,7 @@ function FieldInput({ label, value, onChangeText, placeholder, multiline, error,
 export default function ReportIncidentScreen() {
     const router = useRouter();
     const { token, refreshIncidents } = useAppContext();
+    const toast = useToast();
 
     const [title, setTitle]           = useState('');
     const [location, setLocation]     = useState('');
@@ -96,7 +98,7 @@ export default function ReportIncidentScreen() {
     const handleTakePhoto = async (index) => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
-            Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara.');
+            toast.warning('Permiso requerido', 'Debes permitir el acceso a la cámara.');
             return;
         }
         const result = await ImagePicker.launchCameraAsync({
@@ -111,7 +113,7 @@ export default function ReportIncidentScreen() {
     const handlePickFromLibrary = async (index) => {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-            Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos.');
+            toast.warning('Permiso requerido', 'Debes permitir el acceso a tus fotos.');
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -138,10 +140,10 @@ export default function ReportIncidentScreen() {
                 image2: photos[1] ?? null,
             });
             await refreshIncidents();
-            Alert.alert('Incidencia reportada', 'La incidencia fue enviada correctamente.');
+            toast.success('Incidencia reportada', 'La incidencia fue enviada correctamente.');
             router.replace('/(tabs)/Incidents');
         } catch (error) {
-            Alert.alert('No se pudo reportar', error?.message || 'El servidor rechazó la solicitud.');
+            toast.error('No se pudo reportar', error?.message || 'El servidor rechazó la solicitud.');
         } finally {
             setLoading(false);
         }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -7,6 +7,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { useAppContext } from "../../src/context/AppContext";
+import { useToast } from "../../src/components/Toast";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ export default function CalendarScreen() {
     const [selectedDate, setSelectedDate] = useState(() => toEcuadorStr(new Date()));
     const [isExporting, setIsExporting]   = useState(false);
     const router = useRouter();
+    const toast = useToast();
     const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
     const isConcierge = firstRole(user) === "conserje";
     const [weekAnchor, setWeekAnchor]       = useState(() => toEcuadorStr(new Date()));
@@ -258,7 +260,7 @@ export default function CalendarScreen() {
     useEffect(() => {
         if (!tasksLoaded) {
             refreshTasks().catch((err) =>
-                Alert.alert("Error al cargar calendario", err?.message || "No se pudieron cargar las tareas.")
+                toast.error("Error al cargar calendario", err?.message || "No se pudieron cargar las tareas.")
             );
         }
     }, [tasksLoaded, refreshTasks]);
@@ -327,7 +329,7 @@ export default function CalendarScreen() {
     const inProgressCount = visibleItems.filter((t) => t.status === "in_progress").length;
 
     const exportSchedule = async () => {
-        if (!visibleItems.length) { Alert.alert("Sin tareas", "No hay tareas programadas para exportar."); return; }
+        if (!visibleItems.length) { toast.info("Sin tareas", "No hay tareas programadas para exportar."); return; }
         const safeName = [user?.name, user?.lastname].filter(Boolean).join("-").toLowerCase()
             .replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,"") || "conserje";
         const dateStamp = toEcuadorStr(new Date());
@@ -340,14 +342,14 @@ export default function CalendarScreen() {
             const destUri  = FileSystem.cacheDirectory + filename;
             await FileSystem.moveAsync({ from: pdf.uri, to: destUri });
             const canShare = await Sharing.isAvailableAsync();
-            if (!canShare) { Alert.alert("No disponible", "Este dispositivo no permite compartir PDFs."); return; }
+            if (!canShare) { toast.warning("No disponible", "Este dispositivo no permite compartir PDFs."); return; }
             await Sharing.shareAsync(destUri, {
                 mimeType: "application/pdf",
                 dialogTitle: filename,
                 UTI: "com.adobe.pdf",
             });
         } catch (err) {
-            Alert.alert("Error al exportar", err?.message || "No se pudo generar el horario.");
+            toast.error("Error al exportar", err?.message || "No se pudo generar el horario.");
         } finally {
             setIsExporting(false);
         }

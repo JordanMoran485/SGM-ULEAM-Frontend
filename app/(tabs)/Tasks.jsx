@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomSearchBar } from '../../src/components/CustomSearchBar';
 import { useAppContext } from '../../src/context/AppContext';
+import { useToast } from '../../src/components/Toast';
 
 const FILTERS = [
   { key: 'all',         label: 'Todas' },
@@ -85,13 +86,14 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing]     = useState(false);
 
   const router = useRouter();
+  const toast = useToast();
   const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
   const isConserje = firstRole(user) === 'conserje';
 
   useEffect(() => {
     if (!tasksLoaded) {
       refreshTasks().catch((err) =>
-        Alert.alert('Error al cargar tareas', err?.message || 'No se pudieron cargar las tareas.')
+        toast.error('Error al cargar tareas', err?.message || 'No se pudieron cargar las tareas.')
       );
     }
   }, [tasksLoaded, refreshTasks]);
@@ -121,7 +123,7 @@ export default function TasksScreen() {
   const refreshScreen = async () => {
     setRefreshing(true);
     try { await refreshTasks(); }
-    catch (err) { Alert.alert('Error', err?.message || 'No se pudieron actualizar las tareas.'); }
+    catch (err) { toast.error('Error', err?.message || 'No se pudieron actualizar las tareas.'); }
     finally { setRefreshing(false); }
   };
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator, Alert, Keyboard, ScrollView, StyleSheet,
+  ActivityIndicator, Keyboard, ScrollView, StyleSheet,
   Text, TouchableOpacity, TouchableWithoutFeedback, View,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { HelperText, TextInput } from "react-native-paper";
 import { Dropdown } from 'react-native-element-dropdown';
 import { useAppContext } from '../src/context/AppContext';
+import { useToast } from '../src/components/Toast';
 import { buildApiUrl } from '../src/services/api';
 import { extractAuthPayload } from '../src/services/auth';
 import { getRegistrationCatalogs } from '../src/services/catalogs';
@@ -32,6 +33,7 @@ export default function RegisterScreen() {
   const [facultades, setFacultades] = useState([]);
   const { login } = useAppContext();
   const router = useRouter();
+  const toast = useToast();
 
   const { control, handleSubmit, watch, setError, formState: { errors } } = useForm({
     defaultValues: {
@@ -92,12 +94,12 @@ export default function RegisterScreen() {
         const { user, token } = extractAuthPayload(result);
 
         if (!token) {
-          Alert.alert("Error de autenticación", "El backend respondió sin token de acceso.");
+          toast.error('Error de autenticación', 'El backend respondió sin token de acceso.');
           return;
         }
 
         login(user, token);
-        Alert.alert("Éxito", "Usuario registrado exitosamente.");
+        toast.success('Cuenta creada', 'Usuario registrado exitosamente.');
         router.replace('/');
       } else if (result.errors) {
         Object.keys(result.errors).forEach((key) => {
@@ -107,11 +109,11 @@ export default function RegisterScreen() {
           });
         });
       } else {
-        Alert.alert("Atención", result.message || "Ocurrió un error inesperado");
+        toast.warning('Atención', result.message || 'Ocurrió un error inesperado.');
       }
     } catch (error) {
       console.error("Error en submit:", error);
-      Alert.alert("Error de Conexión", "No se pudo establecer contacto con el servidor de la Uleam.");
+      toast.error('Error de conexión', 'No se pudo establecer contacto con el servidor de la Uleam.');
     } finally {
       setLoading(false);
     }

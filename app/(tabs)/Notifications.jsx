@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Alert, Animated, RefreshControl, ScrollView, StyleSheet,
+    Animated, RefreshControl, ScrollView, StyleSheet,
     Text, TouchableOpacity, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from '../../src/context/AppContext';
+import { useToast } from '../../src/components/Toast';
 
 function formatRelativeDate(value) {
     if (!value) return 'Ahora';
@@ -89,6 +90,7 @@ function FilterTab({ label, active, onPress }) {
 
 export default function NotificationsScreen() {
     const router = useRouter();
+    const toast = useToast();
     const {
         notifications,
         notificationsLoaded,
@@ -113,7 +115,7 @@ export default function NotificationsScreen() {
     useEffect(() => {
         if (!notificationsLoaded) {
             refreshNotifications().catch((err) => {
-                Alert.alert('Error', err?.message || 'No se pudieron cargar las notificaciones.');
+                toast.error('Error', err?.message || 'No se pudieron cargar las notificaciones.');
             });
         }
     }, [notificationsLoaded, refreshNotifications]);
@@ -122,7 +124,7 @@ export default function NotificationsScreen() {
         try {
             await markAllNotificationsRead();
         } catch (err) {
-            Alert.alert('Error', err?.message || 'No se pudieron marcar las notificaciones.');
+            toast.error('Error', err?.message || 'No se pudieron marcar las notificaciones.');
         }
     };
 

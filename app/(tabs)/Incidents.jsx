@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Alert, FlatList, Platform, ScrollView, StyleSheet,
+    FlatList, Platform, ScrollView, StyleSheet,
     Text, TouchableOpacity, UIManager, View,
 } from "react-native";
 
@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CustomSearchBar } from "../../src/components/CustomSearchBar";
 import { useAppContext } from "../../src/context/AppContext";
+import { useToast } from "../../src/components/Toast";
 
 const FILTERS = [
     { key: "all",       label: "Todas" },
@@ -106,11 +107,12 @@ export default function IncidentsScreen() {
     const [refreshing, setRefreshing]   = useState(false);
 
     const router = useRouter();
+    const toast = useToast();
     const { incidents, refreshIncidents, incidentsLoaded } = useAppContext();
 
     useEffect(() => {
         if (!incidentsLoaded) {
-            refreshIncidents().catch((error) => Alert.alert("Error al cargar datos", error.message));
+            refreshIncidents().catch((error) => toast.error("Error al cargar datos", error.message));
         }
     }, [incidentsLoaded, refreshIncidents]);
 
@@ -147,7 +149,7 @@ export default function IncidentsScreen() {
         try {
             await refreshIncidents();
         } catch (error) {
-            Alert.alert("Error al actualizar datos", error.message);
+            toast.error("Error al actualizar datos", error.message);
         } finally {
             setRefreshing(false);
         }

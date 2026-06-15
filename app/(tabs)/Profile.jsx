@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Alert, Image, ScrollView, StyleSheet,
+    Image, ScrollView, StyleSheet,
     Text, TouchableOpacity, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,12 +8,16 @@ import { Stack, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAppContext } from '../../src/context/AppContext';
+import { ActionSheet } from '../../src/components/ActionSheet';
+import { useToast } from '../../src/components/Toast';
 
 export default function Profile() {
     const router = useRouter();
     const { user, logout, updateProfileImage } = useAppContext();
+    const toast = useToast();
     const [localProfilePreview, setLocalProfilePreview] = useState(null);
     const [avatarRefreshKey, setAvatarRefreshKey] = useState(0);
+    const [photoSheetVisible, setPhotoSheetVisible] = useState(false);
 
     const displayName = [user?.name, user?.lastname].filter(Boolean).join(' ') || user?.name || 'Usuario ULEAM';
     const userEmail = user?.email || 'Sin correo registrado';
@@ -41,7 +45,7 @@ export default function Profile() {
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso requerido', 'Debes permitir el acceso a tus fotos para cambiar el avatar.');
+                toast.warning('Permiso requerido', 'Debes permitir el acceso a tus fotos para cambiar el avatar.');
                 return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -56,7 +60,7 @@ export default function Profile() {
                 setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
-            Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+            toast.error('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
         }
     };
 
@@ -64,7 +68,7 @@ export default function Profile() {
         try {
             const permission = await ImagePicker.requestCameraPermissionsAsync();
             if (!permission.granted) {
-                Alert.alert('Permiso requerido', 'Debes permitir el acceso a la cámara para tomar la foto.');
+                toast.warning('Permiso requerido', 'Debes permitir el acceso a la cámara para tomar la foto.');
                 return;
             }
             const result = await ImagePicker.launchCameraAsync({
@@ -79,17 +83,11 @@ export default function Profile() {
                 setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
-            Alert.alert('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+            toast.error('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
         }
     };
 
-    const handlePickProfileImage = () => {
-        Alert.alert('Foto de perfil', 'Elige una opción', [
-            { text: 'Tomar foto', onPress: takePhoto },
-            { text: 'Galería', onPress: pickFromLibrary },
-            { text: 'Cancelar', style: 'cancel' },
-        ]);
-    };
+    const handlePickProfileImage = () => setPhotoSheetVisible(true);
 
     const handleLogout = () => {
         logout();
@@ -97,6 +95,7 @@ export default function Profile() {
     };
 
     return (
+        <>
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
@@ -209,6 +208,17 @@ export default function Profile() {
             </TouchableOpacity>
 
         </ScrollView>
+
+        <ActionSheet
+            visible={photoSheetVisible}
+            title="Foto de perfil"
+            onClose={() => setPhotoSheetVisible(false)}
+            options={[
+                { icon: 'camera-outline', label: 'Tomar foto',        onPress: takePhoto },
+                { icon: 'image-outline',  label: 'Elegir de galería', onPress: pickFromLibrary },
+            ]}
+        />
+        </>
     );
 }
 

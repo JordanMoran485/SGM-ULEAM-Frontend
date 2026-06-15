@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Animated, Dimensions, Easing, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, Stack } from 'expo-router';
+import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppContext } from '../../src/context/AppContext';
+import { useToast } from '../../src/components/Toast';
 import { API_BASE_URL } from '../../src/services/api';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -219,6 +220,7 @@ function WeekLineChart({ data, max, todayIndex }) {
 
 export default function Dashboard() {
     const router = useRouter();
+    const toast = useToast();
     const {
         user, stats, incidents, incidentsLoaded, refreshIncidents,
         tasks, tasksLoaded, refreshTasks, notifications,
@@ -228,7 +230,7 @@ export default function Dashboard() {
         if (!tasksLoaded) {
             console.log('Dashboard API base URL:', API_BASE_URL);
             refreshTasks().catch((err) => {
-                Alert.alert('Error al cargar Dashboard', err?.message || 'No se pudieron cargar las tareas.');
+                toast.error('Error al cargar', err?.message || 'No se pudieron cargar las tareas.');
             });
         }
         if (!incidentsLoaded) {
@@ -239,6 +241,29 @@ export default function Dashboard() {
     const [chartSlide, setChartSlide]       = React.useState(0);
     const [taskChartType, setTaskChartType] = React.useState('bar');
     const shimmer = useRef(new Animated.Value(0)).current;
+    const barProgress = useRef(new Animated.Value(0)).current;
+
+    const animateBars = useCallback(() => {
+        barProgress.setValue(0);
+        Animated.timing(barProgress, {
+            toValue: 1,
+            duration: 650,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+        }).start();
+    }, [barProgress]);
+
+    // Primera carga: anima cuando llegan los datos
+    useEffect(() => {
+        if (tasksLoaded && incidentsLoaded) animateBars();
+    }, [tasksLoaded, incidentsLoaded, animateBars]);
+
+    // Cada vez que el usuario vuelve a esta pantalla
+    useFocusEffect(
+        useCallback(() => {
+            if (tasksLoaded && incidentsLoaded) animateBars();
+        }, [tasksLoaded, incidentsLoaded, animateBars])
+    );
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
@@ -463,13 +488,13 @@ export default function Dashboard() {
                                                         {isToday && <Text style={styles.chartTodayLabel}>{dayFull}</Text>}
                                                     </View>
                                                     <View style={styles.chartTrack}>
-                                                        <View style={[styles.chartBar, { height: barH }, isToday ? styles.chartBarToday : styles.chartBarIdle]}>
+                                                        <Animated.View style={[styles.chartBar, { height: barProgress.interpolate({ inputRange: [0, 1], outputRange: [0, barH] }) }, isToday ? styles.chartBarToday : styles.chartBarIdle]}>
                                                             {day.count > 0 && barH >= 24 && (
                                                                 <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#4A6CF7' }]}>
                                                                     {day.count}
                                                                 </Text>
                                                             )}
-                                                        </View>
+                                                        </Animated.View>
                                                     </View>
                                                     <Text style={[styles.chartLabel, isToday && styles.chartLabelToday]}>{day.label}</Text>
                                                 </View>
@@ -506,13 +531,13 @@ export default function Dashboard() {
                                                     {isToday && <Text style={[styles.chartTodayLabel, { color: '#06B6D4' }]}>{dayFull}</Text>}
                                                 </View>
                                                 <View style={styles.chartTrack}>
-                                                    <View style={[styles.chartBar, { height: barH }, isToday ? styles.chartBarTodayCyan : styles.chartBarIdleCyan]}>
+                                                    <Animated.View style={[styles.chartBar, { height: barProgress.interpolate({ inputRange: [0, 1], outputRange: [0, barH] }) }, isToday ? styles.chartBarTodayCyan : styles.chartBarIdleCyan]}>
                                                         {day.count > 0 && barH >= 24 && (
                                                             <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#06B6D4' }]}>
                                                                 {day.count}
                                                             </Text>
                                                         )}
-                                                    </View>
+                                                    </Animated.View>
                                                 </View>
                                                 <Text style={[styles.chartLabel, isToday && { color: '#06B6D4', fontWeight: '800' }]}>{day.label}</Text>
                                             </View>

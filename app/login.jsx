@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { HelperText, TextInput } from "react-native-paper";
 import { useAppContext } from '../src/context/AppContext';
+import { useToast } from '../src/components/Toast';
 import { buildApiUrl } from '../src/services/api';
 import { extractAuthPayload } from '../src/services/auth';
 
@@ -25,6 +26,7 @@ const customTheme = {
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAppContext();
+  const toast = useToast();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const { control, handleSubmit, setError, formState: { errors } } = useForm({
@@ -53,7 +55,7 @@ export default function LoginScreen() {
         const { user, token } = extractAuthPayload(result);
 
         if (!token) {
-          Alert.alert("Error de autenticación", "El backend respondió sin token de acceso.");
+          toast.error('Error de autenticación', 'El backend respondió sin token de acceso.');
           return;
         }
 
@@ -74,7 +76,7 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error("Error de conexión técnica:", error.message);
-      Alert.alert("Error de Red", "No hay conexión con el servidor de la Uleam. Revisa tu internet.");
+      toast.error('Error de red', 'No hay conexión con el servidor de la Uleam. Revisa tu internet.');
     } finally {
       setLoading(false);
     }

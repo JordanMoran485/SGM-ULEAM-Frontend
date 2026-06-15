@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from '../src/context/AppContext';
+import { ToastProvider } from '../src/components/Toast';
 
 function NotificationNavigator() {
   const router = useRouter();
@@ -64,13 +65,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <PaperProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            {/* <Stack.Screen name="Login" />
-            <Stack.Screen name="Register" /> */}
-          </Stack>
-          <NotificationNavigator />
-        </PaperProvider>
+        <ToastProvider>
+          <PaperProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              {/* <Stack.Screen name="Login" />
+              <Stack.Screen name="Register" /> */}
+            </Stack>
+            <NotificationNavigator />
+          </PaperProvider>
+        </ToastProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
