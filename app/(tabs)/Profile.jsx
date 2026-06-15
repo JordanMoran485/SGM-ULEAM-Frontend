@@ -25,6 +25,9 @@ export default function Profile() {
     }[primaryRole || user?.role || user?.cargo] || user?.role || user?.cargo || 'Operador del sistema');
     const facultyLabel = user?.facultad?.display_name || user?.facultad?.name
         || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
+    const supervisorLabel = user?.supervisor
+        ? [user.supervisor.name, user.supervisor.lastname].filter(Boolean).join(' ')
+        : null;
 
     const remoteProfileImage = useMemo(() => {
         if (!user?.profile_photo_url) return null;
@@ -174,6 +177,21 @@ export default function Profile() {
                         <Text style={styles.listValue}>{facultyLabel}</Text>
                     </View>
                 </View>
+
+                {supervisorLabel && (
+                    <>
+                        <View style={styles.divider} />
+                        <View style={styles.listRow}>
+                            <View style={styles.iconBox}>
+                                <MaterialCommunityIcons name="account-tie-outline" size={18} color="#4A6CF7" />
+                            </View>
+                            <View style={styles.listContent}>
+                                <Text style={styles.listLabel}>Supervisor asignado</Text>
+                                <Text style={styles.listValue}>{supervisorLabel}</Text>
+                            </View>
+                        </View>
+                    </>
+                )}
 
             </View>
 
