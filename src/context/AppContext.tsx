@@ -13,7 +13,7 @@ import React, {
 } from 'react';
 import { uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
-import { getNotifications, markNotificationAsRead } from '../services/notifications';
+import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead } from '../services/notifications';
 import { savePushToken } from '../services/pushToken';
 import { getTasks, updateTaskStatus } from '../services/tasks';
 
@@ -57,6 +57,7 @@ export interface AppContextValue {
   notificationsLoaded: boolean;
   refreshNotifications: () => Promise<NotificationItem[]>;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   unreadNotificationsCount: number;
   stats: IncidentStats;
   login: (userData: AppUser, userToken: string) => void;
@@ -388,6 +389,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const markAllNotificationsRead = async () => {
+    if (!token) {
+      throw new Error('No hay una sesión activa.');
+    }
+
+    await markAllNotificationsAsRead(token);
+
+    setNotifications((current) =>
+      current.map((item) =>
+        item.isRead ? item : { ...item, isRead: true, readAt: new Date().toISOString() }
+      )
+    );
+  };
+
   const stats = useMemo<IncidentStats>(() => buildIncidentStats(incidents), [incidents]);
   const unreadNotificationsCount = useMemo(
     () => notifications.filter((item) => !item.isRead).length,
@@ -409,6 +424,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     notificationsLoaded,
     refreshNotifications,
     markNotificationRead,
+    markAllNotificationsRead,
     unreadNotificationsCount,
     stats,
     login,

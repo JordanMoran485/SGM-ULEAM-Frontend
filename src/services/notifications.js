@@ -38,3 +38,10 @@ export async function markNotificationAsRead(token, notificationId) {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 }
+
+export async function markAllNotificationsAsRead(token) {
+  return fetchJson('/api/notifications/read-all', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}

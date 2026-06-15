@@ -94,6 +94,7 @@ export default function NotificationsScreen() {
         notificationsLoaded,
         refreshNotifications,
         markNotificationRead,
+        markAllNotificationsRead,
         isLoading,
     } = useAppContext();
 
@@ -116,6 +117,14 @@ export default function NotificationsScreen() {
             });
         }
     }, [notificationsLoaded, refreshNotifications]);
+
+    const handleMarkAllRead = async () => {
+        try {
+            await markAllNotificationsRead();
+        } catch (err) {
+            Alert.alert('Error', err?.message || 'No se pudieron marcar las notificaciones.');
+        }
+    };
 
     const handleOpen = async (notification) => {
         try {
@@ -200,12 +209,20 @@ export default function NotificationsScreen() {
 
             {/* ── Filtros ── */}
             <View style={styles.filterRow}>
-                <FilterTab label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
-                <FilterTab
-                    label={`No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
-                    active={filter === 'unread'}
-                    onPress={() => setFilter('unread')}
-                />
+                <View style={styles.filterTabs}>
+                    <FilterTab label="Todas" active={filter === 'all'} onPress={() => setFilter('all')} />
+                    <FilterTab
+                        label={`No leídas${unreadCount > 0 ? ` (${unreadCount})` : ''}`}
+                        active={filter === 'unread'}
+                        onPress={() => setFilter('unread')}
+                    />
+                </View>
+                {unreadCount > 0 && (
+                    <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.85} style={styles.markAllBtn}>
+                        <MaterialCommunityIcons name="check-all" size={14} color="#4A6CF7" />
+                        <Text style={styles.markAllBtnText}>Marcar todo</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             {/* ── Lista ── */}
@@ -386,10 +403,29 @@ const styles = StyleSheet.create({
     // Filtros
     filterRow: {
         flexDirection: 'row',
-        gap: 10,
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingTop: 20,
         paddingBottom: 16,
+    },
+    filterTabs: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    markAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#E8EDFF',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+    },
+    markAllBtnText: {
+        color: '#4A6CF7',
+        fontSize: 12,
+        fontWeight: '700',
     },
     filterTabWrapper: {
         borderRadius: 999,
