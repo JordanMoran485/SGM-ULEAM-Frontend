@@ -188,48 +188,52 @@ function buildUploadFile(image) {
   };
 }
 
-export async function createIncident(token, payload) {
-  const formData = new FormData();
+export function createIncident(token, payload, onProgress) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
 
-  appendIfPresent(formData, 'title', payload?.title);
-  appendIfPresent(formData, 'description', payload?.description);
-  appendIfPresent(formData, 'location', payload?.location);
-  appendIfPresent(formData, 'category', payload?.category);
-  appendIfPresent(formData, 'status', payload?.status || 'pending');
+    appendIfPresent(formData, 'title', payload?.title);
+    appendIfPresent(formData, 'description', payload?.description);
+    appendIfPresent(formData, 'location', payload?.location);
+    appendIfPresent(formData, 'category', payload?.category);
+    appendIfPresent(formData, 'status', payload?.status || 'pending');
 
-  const uploadFile = buildUploadFile(payload?.image);
-  if (uploadFile) formData.append('image', uploadFile);
+    const uploadFile = buildUploadFile(payload?.image);
+    if (uploadFile) formData.append('image', uploadFile);
 
-  const uploadFile2 = buildUploadFile(payload?.image2);
-  if (uploadFile2) formData.append('image2', uploadFile2);
+    const uploadFile2 = buildUploadFile(payload?.image2);
+    if (uploadFile2) formData.append('image2', uploadFile2);
 
-  const response = await fetch(buildApiUrl('/api/incidents'), {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: formData,
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', buildApiUrl('/api/incidents'));
+    xhr.setRequestHeader('Accept', 'application/json');
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+    if (onProgress && xhr.upload) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch (_) {}
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        const error = new Error(
+          (typeof data === 'object' ? data?.message : null) ||
+          `Request failed with status ${xhr.status}`
+        );
+        error.status = xhr.status;
+        error.data = data;
+        reject(error);
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Error de red al subir la incidencia.'));
+    xhr.send(formData);
   });
-
-  const responseText = await response.text();
-  let data = null;
-
-  try {
-    data = responseText ? JSON.parse(responseText) : null;
-  } catch (_error) {
-    data = responseText;
-  }
-
-  if (!response.ok) {
-    const error = new Error(
-      (typeof data === 'object' ? data?.message : null) ||
-      `Request failed with status ${response.status} at ${buildApiUrl('/api/incidents')}`
-    );
-    error.status = response.status;
-    error.data = data;
-    throw error;
-  }
-
-  return data;
 }

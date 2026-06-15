@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
-    Image, KeyboardAvoidingView, Modal, Platform,
+    Animated, Image, KeyboardAvoidingView, Modal, Platform,
     Pressable, ScrollView, StatusBar,
     StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -71,6 +71,8 @@ export default function ReportIncidentScreen() {
     const [photos, setPhotos]             = useState([null, null]);
     const [fullscreenIndex, setFullscreenIndex] = useState(null);
     const [loading, setLoading]           = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const progressAnim = useRef(new Animated.Value(0)).current;
     const [errors, setErrors]             = useState({});
     const [focused, setFocused]           = useState('');
     const [locationType, setLocationType] = useState(null);
@@ -128,6 +130,8 @@ export default function ReportIncidentScreen() {
     const handleSubmit = async () => {
         if (!validate()) return;
         setLoading(true);
+        setUploadProgress(0);
+        progressAnim.setValue(0);
         try {
             const locationLabel = LOCATION_TYPES.find((lt) => lt.key === locationType)?.label;
             const locationFull  = [locationLabel, location.trim() || null].filter(Boolean).join(' - ');
@@ -138,6 +142,13 @@ export default function ReportIncidentScreen() {
                 description: description.trim(),
                 image: photos[0],
                 image2: photos[1] ?? null,
+            }, (pct) => {
+                setUploadProgress(pct);
+                Animated.timing(progressAnim, {
+                    toValue: pct,
+                    duration: 150,
+                    useNativeDriver: false,
+                }).start();
             });
             await refreshIncidents();
             toast.success('Incidencia reportada', 'La incidencia fue enviada correctamente.');
@@ -146,6 +157,7 @@ export default function ReportIncidentScreen() {
             toast.error('No se pudo reportar', error?.message || 'El servidor rechazó la solicitud.');
         } finally {
             setLoading(false);
+            setUploadProgress(0);
         }
     };
 
@@ -391,6 +403,30 @@ export default function ReportIncidentScreen() {
                     </LinearGradient>
                 </TouchableOpacity>
 
+                {loading && (
+                    <View style={styles.progressContainer}>
+                        <View style={styles.progressTrack}>
+                            <Animated.View
+                                style={[
+                                    styles.progressFill,
+                                    {
+                                        width: progressAnim.interpolate({
+                                            inputRange: [0, 100],
+                                            outputRange: ['0%', '100%'],
+                                            extrapolate: 'clamp',
+                                        }),
+                                    },
+                                ]}
+                            />
+                        </View>
+                        <Text style={styles.progressText}>
+                            {uploadProgress < 100
+                                ? `Subiendo evidencia... ${uploadProgress}%`
+                                : 'Procesando incidencia...'}
+                        </Text>
+                    </View>
+                )}
+
                 <TouchableOpacity
                     activeOpacity={0.85}
                     style={styles.cancelBtn}
@@ -565,6 +601,29 @@ const styles = StyleSheet.create({
     },
     submitBtnText: {
         color: '#ffffff', fontSize: 15, fontWeight: '700',
+    },
+
+    // Progress bar
+    progressContainer: {
+        marginTop: 14,
+        gap: 8,
+    },
+    progressTrack: {
+        height: 6,
+        backgroundColor: '#E8EDFF',
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#4A6CF7',
+        borderRadius: 999,
+    },
+    progressText: {
+        color: '#8F95B2',
+        fontSize: 12,
+        fontWeight: '600',
+        textAlign: 'center',
     },
 
     // Cancelar
