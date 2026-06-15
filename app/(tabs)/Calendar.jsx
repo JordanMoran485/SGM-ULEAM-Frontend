@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
@@ -243,6 +243,106 @@ function getMonthGrid(anchor) {
     return { days, month };
 }
 
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+function useSkeletonOpacity() {
+    const opacity = useRef(new Animated.Value(0.5)).current;
+    useEffect(() => {
+        const anim = Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 1,   duration: 700, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+            ])
+        );
+        anim.start();
+        return () => anim.stop();
+    }, [opacity]);
+    return opacity;
+}
+
+function CalendarSkeletonScreen() {
+    const opacity = useSkeletonOpacity();
+    return (
+        <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <LinearGradient
+                colors={["#2D3FE0", "#4A6CF7", "#7B9FFF"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.hero}
+            >
+                <View style={styles.heroDeco1} />
+                <View style={styles.heroDeco2} />
+                <View style={styles.backBtn} />
+                <View style={[styles.heroRow, { marginBottom: 20 }]}>
+                    <View style={{ flex: 1, gap: 10 }}>
+                        <Animated.View style={[skStyles.eyebrowBar, { opacity }]} />
+                        <Animated.View style={[skStyles.titleHeroBar, { opacity }]} />
+                    </View>
+                </View>
+                <View style={styles.statRow}>
+                    {[0, 1, 2].map((i) => (
+                        <Animated.View key={i} style={[styles.statCard, { opacity }]}>
+                            <View style={[styles.statIcon, { backgroundColor: "#E8EDFF" }]} />
+                            <View style={skStyles.statNumBar} />
+                            <View style={skStyles.statLabelBar} />
+                        </Animated.View>
+                    ))}
+                </View>
+            </LinearGradient>
+
+            <View style={styles.exportWrap}>
+                <Animated.View style={[skStyles.exportBar, { opacity }]} />
+            </View>
+
+            <View style={styles.weekCard}>
+                <View style={styles.weekHeader}>
+                    <Animated.View style={[skStyles.navBtn, { opacity }]} />
+                    <Animated.View style={[skStyles.monthLabelBar, { opacity }]} />
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                        <Animated.View style={[skStyles.navBtn, { opacity }]} />
+                        <Animated.View style={[skStyles.navBtn, { opacity }]} />
+                    </View>
+                </View>
+                <View style={styles.weekDaysRow}>
+                    {[...Array(7)].map((_, i) => (
+                        <Animated.View key={i} style={[skStyles.weekDayCell, { backgroundColor: i === 3 ? "#C7D2FE" : "#E8EDFF", opacity }]} />
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.viewToggleRow}>
+                <Animated.View style={[skStyles.toggleActive, { opacity }]} />
+                <Animated.View style={[skStyles.toggleInactive, { opacity }]} />
+            </View>
+
+            <View style={styles.agendaCard}>
+                <View style={styles.agendaHeader}>
+                    <View style={{ gap: 6 }}>
+                        <Animated.View style={[skStyles.eyebrowSmall, { opacity }]} />
+                        <Animated.View style={[skStyles.agendaTitleBar, { opacity }]} />
+                    </View>
+                    <Animated.View style={[skStyles.countPill, { opacity }]} />
+                </View>
+                <View style={{ height: 1, backgroundColor: "#F1F3FF", marginBottom: 12 }} />
+                {[...Array(3)].map((_, i) => (
+                    <View key={i} style={[styles.taskCard, { marginBottom: 10 }]}>
+                        <Animated.View style={[{ width: 4, backgroundColor: "#C7D2FE", opacity }]} />
+                        <View style={styles.taskBody}>
+                            <Animated.View style={[skStyles.taskBadgeBar, { opacity }]} />
+                            <Animated.View style={[skStyles.taskTitleBar, { opacity }]} />
+                            <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                                <Animated.View style={[skStyles.taskMetaBar, { opacity }]} />
+                                <Animated.View style={[skStyles.taskMetaBar, { opacity }]} />
+                            </View>
+                        </View>
+                    </View>
+                ))}
+            </View>
+        </ScrollView>
+    );
+}
+
 // ─── screen ─────────────────────────────────────────────────────────────────
 
 export default function CalendarScreen() {
@@ -252,6 +352,7 @@ export default function CalendarScreen() {
     const toast = useToast();
     const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
     const isConcierge = firstRole(user) === "conserje";
+    const contentOpacity = useRef(new Animated.Value(1)).current;
     const [weekAnchor, setWeekAnchor]       = useState(() => toEcuadorStr(new Date()));
     const [isMonthExpanded, setIsMonthExpanded] = useState(false);
     const { weekMode, weekStart } = useLocalSearchParams();
@@ -320,6 +421,16 @@ export default function CalendarScreen() {
         }
     }, [weekMode, weekStart]);
 
+    useEffect(() => {
+        contentOpacity.setValue(0);
+        Animated.timing(contentOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+    }, [selectedDate, viewMode]);
+
+    const toggleMonthView = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setIsMonthExpanded((v) => !v);
+    };
+
     const activeSection = useMemo(
         () => sections.find((s) => s.dateKey === selectedDate) ?? null,
         [sections, selectedDate]
@@ -354,6 +465,8 @@ export default function CalendarScreen() {
             setIsExporting(false);
         }
     };
+
+    if (!tasksLoaded) return <CalendarSkeletonScreen />;
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -451,7 +564,7 @@ export default function CalendarScreen() {
                         <TouchableOpacity
                             activeOpacity={0.85}
                             style={[styles.weekNavBtn, isMonthExpanded && styles.weekNavBtnActive]}
-                            onPress={() => setIsMonthExpanded((v) => !v)}
+                            onPress={toggleMonthView}
                         >
                             <MaterialCommunityIcons
                                 name={isMonthExpanded ? "calendar-week" : "calendar-month-outline"}
@@ -606,6 +719,7 @@ export default function CalendarScreen() {
                 </TouchableOpacity>
             </View>
 
+            <Animated.View style={{ opacity: contentOpacity }}>
             {viewMode === 'week' ? (
                 <View style={styles.weekViewContainer}>
                     {weekDays.map((dayKey) => {
@@ -759,6 +873,7 @@ export default function CalendarScreen() {
                     </View>
                 )
             )}
+            </Animated.View>
         </ScrollView>
     );
 }
@@ -1070,4 +1185,23 @@ const styles = StyleSheet.create({
     weekViewEmptyLine: { flex: 1, height: 1, backgroundColor: '#F1F3FF' },
     weekViewEmptyText: { color: '#C7D2FE', fontSize: 12, fontWeight: '600' },
     taskTimeLabel: { color: '#8F95B2', fontSize: 11, fontWeight: '600' },
+});
+
+const skStyles = StyleSheet.create({
+    eyebrowBar:     { width: 130, height: 12, borderRadius: 6,  backgroundColor: 'rgba(255,255,255,0.30)' },
+    titleHeroBar:   { width: 160, height: 28, borderRadius: 8,  backgroundColor: 'rgba(255,255,255,0.30)' },
+    statNumBar:     { width: 30,  height: 20, borderRadius: 6,  backgroundColor: '#C7D2FE', marginTop: 2 },
+    statLabelBar:   { width: 50,  height: 10, borderRadius: 4,  backgroundColor: '#E8EDFF', marginTop: 2 },
+    exportBar:      { height: 52, borderRadius: 20, backgroundColor: '#C7D2FE' },
+    navBtn:         { width: 40,  height: 40, borderRadius: 12, backgroundColor: '#E8EDFF' },
+    monthLabelBar:  { width: 140, height: 16, borderRadius: 6,  backgroundColor: '#C7D2FE' },
+    weekDayCell:    { flex: 1,    height: 72, borderRadius: 14 },
+    toggleActive:   { width: 72,  height: 38, borderRadius: 999, backgroundColor: '#C7D2FE' },
+    toggleInactive: { width: 96,  height: 38, borderRadius: 999, backgroundColor: '#E8EDFF' },
+    eyebrowSmall:   { width: 120, height: 10, borderRadius: 4,  backgroundColor: '#E8EDFF' },
+    agendaTitleBar: { width: 200, height: 20, borderRadius: 6,  backgroundColor: '#C7D2FE' },
+    countPill:      { width: 48,  height: 30, borderRadius: 999, backgroundColor: '#E8EDFF' },
+    taskBadgeBar:   { width: 70,  height: 22, borderRadius: 999, backgroundColor: '#E8EDFF' },
+    taskTitleBar:   { width: '75%', height: 14, borderRadius: 6, backgroundColor: '#C7D2FE', marginTop: 4 },
+    taskMetaBar:    { flex: 1,    height: 24, borderRadius: 999, backgroundColor: '#E8EDFF' },
 });

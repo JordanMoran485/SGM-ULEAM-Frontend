@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -46,6 +46,84 @@ function formatTaskDate(item) {
   if (diff < 3600)  return `hace ${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
   return new Intl.DateTimeFormat('es-EC', { day: 'numeric', month: 'short' }).format(parsed);
+}
+
+function useSkeletonOpacity() {
+  const opacity = useRef(new Animated.Value(0.5)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1,   duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+  return opacity;
+}
+
+function SkeletonCard({ opacity }) {
+  return (
+    <View style={[styles.card, { paddingLeft: 20 }]}>
+      <Animated.View style={[skStyles.stripe, { opacity }]} />
+      <Animated.View style={[skStyles.iconBox, { opacity }]} />
+      <View style={{ flex: 1, gap: 6 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Animated.View style={[skStyles.titleBar, { opacity }]} />
+          <Animated.View style={[skStyles.timeBar, { opacity }]} />
+        </View>
+        <Animated.View style={[skStyles.locationBar, { opacity }]} />
+        <Animated.View style={[skStyles.tagPill, { opacity }]} />
+      </View>
+      <Animated.View style={[skStyles.chevron, { opacity }]} />
+    </View>
+  );
+}
+
+function TaskSkeletonScreen({ isConserje }) {
+  const opacity = useSkeletonOpacity();
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {/* Hero con shimmer */}
+      <LinearGradient
+        colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.hero}
+      >
+        <View style={styles.decCircle1} />
+        <View style={styles.decCircle2} />
+        <View style={styles.heroRow}>
+          <View style={{ gap: 10 }}>
+            <Animated.View style={[skStyles.eyebrowBar, { opacity }]} />
+            <Animated.View style={[skStyles.titleHeroBar, { opacity }]} />
+          </View>
+          <Animated.View style={[skStyles.heroBadgeBox, { opacity }]} />
+        </View>
+      </LinearGradient>
+
+      {/* Search skeleton */}
+      <View style={styles.searchWrapper}>
+        <Animated.View style={[skStyles.searchBar, { opacity }]} />
+      </View>
+
+      {/* Tabs skeleton */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow} style={styles.tabsScroll}>
+        {[80, 106, 110, 118].map((w, i) => (
+          <Animated.View key={i} style={[skStyles.tabPill, { width: w, backgroundColor: i === 0 ? '#C7D2FE' : '#E8EDFF', opacity }]} />
+        ))}
+      </ScrollView>
+
+      {/* Encabezado lista skeleton */}
+      <View style={[styles.listHeader, { marginTop: 16 }]}>
+        <Animated.View style={[skStyles.listTitleBar, { opacity }]} />
+        <Animated.View style={[skStyles.listCountBox, { opacity }]} />
+      </View>
+
+      {/* Cards skeleton */}
+      {[...Array(5)].map((_, i) => <SkeletonCard key={i} opacity={opacity} />)}
+    </ScrollView>
+  );
 }
 
 function StatusTab({ label, active, count, onPress }) {
@@ -128,6 +206,8 @@ export default function TasksScreen() {
   };
 
   const screenTitle = isConserje ? 'Mis tareas' : 'Tareas asignadas';
+
+  if (!tasksLoaded) return <TaskSkeletonScreen isConserje={isConserje} />;
 
   const ListHeader = (
     <>
@@ -429,4 +509,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 10, marginTop: 4,
   },
   emptyActionText: { color: '#4A6CF7', fontSize: 13, fontWeight: '700' },
+});
+
+const skStyles = StyleSheet.create({
+  // Hero shimmer
+  eyebrowBar:   { width: 120, height: 12, borderRadius: 6,  backgroundColor: 'rgba(255,255,255,0.30)' },
+  titleHeroBar: { width: 180, height: 28, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.30)' },
+  heroBadgeBox: { width: 72,  height: 64, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.20)' },
+  // Search
+  searchBar:    { height: 48, borderRadius: 16, backgroundColor: '#C7D2FE' },
+  // Tabs
+  tabPill:      { height: 38, borderRadius: 999 },
+  // List header
+  listTitleBar: { width: 150, height: 18, borderRadius: 6,  backgroundColor: '#C7D2FE' },
+  listCountBox: { width: 52,  height: 30, borderRadius: 999, backgroundColor: '#E8EDFF' },
+  // Card
+  stripe:       { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: '#C7D2FE' },
+  iconBox:      { width: 48,  height: 48, borderRadius: 14, backgroundColor: '#E8EDFF', flexShrink: 0 },
+  titleBar:     { width: '62%', height: 14, borderRadius: 6,  backgroundColor: '#C7D2FE' },
+  timeBar:      { width: 36,   height: 10, borderRadius: 4,  backgroundColor: '#E8EDFF' },
+  locationBar:  { width: '45%', height: 11, borderRadius: 5,  backgroundColor: '#E8EDFF' },
+  tagPill:      { width: 72,   height: 22, borderRadius: 999, backgroundColor: '#E8EDFF' },
+  chevron:      { width: 22,   height: 22, borderRadius: 6,  backgroundColor: '#E8EDFF' },
 });
