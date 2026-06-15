@@ -247,9 +247,9 @@ export default function Dashboard() {
         barProgress.setValue(0);
         Animated.timing(barProgress, {
             toValue: 1,
-            duration: 650,
+            duration: 550,
             easing: Easing.out(Easing.cubic),
-            useNativeDriver: false,
+            useNativeDriver: true,
         }).start();
     }, [barProgress]);
 
@@ -488,7 +488,7 @@ export default function Dashboard() {
                                                         {isToday && <Text style={styles.chartTodayLabel}>{dayFull}</Text>}
                                                     </View>
                                                     <View style={styles.chartTrack}>
-                                                        <Animated.View style={[styles.chartBar, { height: barProgress.interpolate({ inputRange: [0, 1], outputRange: [0, barH] }) }, isToday ? styles.chartBarToday : styles.chartBarIdle]}>
+                                                        <Animated.View style={[styles.chartBar, { height: barH, transform: [{ translateY: barProgress.interpolate({ inputRange: [0, 1], outputRange: [barH / 2, 0] }) }, { scaleY: barProgress }] }, isToday ? styles.chartBarToday : styles.chartBarIdle]}>
                                                             {day.count > 0 && barH >= 24 && (
                                                                 <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#4A6CF7' }]}>
                                                                     {day.count}
@@ -531,7 +531,7 @@ export default function Dashboard() {
                                                     {isToday && <Text style={[styles.chartTodayLabel, { color: '#06B6D4' }]}>{dayFull}</Text>}
                                                 </View>
                                                 <View style={styles.chartTrack}>
-                                                    <Animated.View style={[styles.chartBar, { height: barProgress.interpolate({ inputRange: [0, 1], outputRange: [0, barH] }) }, isToday ? styles.chartBarTodayCyan : styles.chartBarIdleCyan]}>
+                                                    <Animated.View style={[styles.chartBar, { height: barH, transform: [{ translateY: barProgress.interpolate({ inputRange: [0, 1], outputRange: [barH / 2, 0] }) }, { scaleY: barProgress }] }, isToday ? styles.chartBarTodayCyan : styles.chartBarIdleCyan]}>
                                                         {day.count > 0 && barH >= 24 && (
                                                             <Text style={[styles.chartBarCount, { color: isToday ? '#ffffff' : '#06B6D4' }]}>
                                                                 {day.count}
