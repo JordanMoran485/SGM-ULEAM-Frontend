@@ -71,6 +71,7 @@ export default function ReportIncidentScreen() {
     const [photos, setPhotos]             = useState([null, null]);
     const [fullscreenIndex, setFullscreenIndex] = useState(null);
     const [loading, setLoading]           = useState(false);
+    const [loadingPhoto, setLoadingPhoto] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const progressAnim = useRef(new Animated.Value(0)).current;
     const [errors, setErrors]             = useState({});
@@ -103,12 +104,17 @@ export default function ReportIncidentScreen() {
             toast.warning('Permiso requerido', 'Debes permitir el acceso a la cámara.');
             return;
         }
-        const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'], quality: 0.75,
-        });
-        if (!result.canceled && result.assets?.[0]) {
-            setPhoto(index, normalizePickedAsset(result.assets[0]));
-            if (index === 0) clearError('photo');
+        setLoadingPhoto(index);
+        try {
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'], quality: 0.75,
+            });
+            if (!result.canceled && result.assets?.[0]) {
+                setPhoto(index, normalizePickedAsset(result.assets[0]));
+                if (index === 0) clearError('photo');
+            }
+        } finally {
+            setLoadingPhoto(null);
         }
     };
 
@@ -118,12 +124,17 @@ export default function ReportIncidentScreen() {
             toast.warning('Permiso requerido', 'Debes permitir el acceso a tus fotos.');
             return;
         }
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'], quality: 0.75,
-        });
-        if (!result.canceled && result.assets?.[0]) {
-            setPhoto(index, normalizePickedAsset(result.assets[0]));
-            if (index === 0) clearError('photo');
+        setLoadingPhoto(index);
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'], quality: 0.75,
+            });
+            if (!result.canceled && result.assets?.[0]) {
+                setPhoto(index, normalizePickedAsset(result.assets[0]));
+                if (index === 0) clearError('photo');
+            }
+        } finally {
+            setLoadingPhoto(null);
         }
     };
 
@@ -215,9 +226,15 @@ export default function ReportIncidentScreen() {
                         >
                             <View style={styles.photoDecoDot} />
                             <View style={styles.photoIconBox}>
-                                <MaterialCommunityIcons name="camera-outline" size={32} color="rgba(255,255,255,0.9)" />
+                                <MaterialCommunityIcons
+                                    name={loadingPhoto === 0 ? 'image-sync-outline' : 'camera-outline'}
+                                    size={32}
+                                    color="rgba(255,255,255,0.9)"
+                                />
                             </View>
-                            <Text style={styles.photoPlaceholderText}>Sin evidencia adjunta</Text>
+                            <Text style={styles.photoPlaceholderText}>
+                                {loadingPhoto === 0 ? 'Procesando foto...' : 'Sin evidencia adjunta'}
+                            </Text>
                         </LinearGradient>
                     )}
 
@@ -269,6 +286,13 @@ export default function ReportIncidentScreen() {
                         <TouchableOpacity activeOpacity={0.9} onPress={() => setFullscreenIndex(1)}>
                             <Image source={{ uri: photos[1].uri }} style={styles.photoPreview} resizeMode="cover" />
                         </TouchableOpacity>
+                    ) : loadingPhoto === 1 ? (
+                        <View style={styles.photoPlaceholderSecondary}>
+                            <View style={styles.photoIconBoxGhost}>
+                                <MaterialCommunityIcons name="image-sync-outline" size={26} color="#4A6CF7" />
+                            </View>
+                            <Text style={styles.photoPlaceholderSecondaryText}>Procesando foto...</Text>
+                        </View>
                     ) : (
                         <TouchableOpacity
                             activeOpacity={0.85}
