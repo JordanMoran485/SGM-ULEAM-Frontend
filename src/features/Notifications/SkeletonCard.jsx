@@ -1,7 +1,7 @@
 import React from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-export function SkeletonCard({ shimmer }) {
+export const SkeletonCard = React.memo(function SkeletonCard({ shimmer }) {
     const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.85] });
     return (
         <View style={s.card}>
@@ -21,7 +21,7 @@ export function SkeletonCard({ shimmer }) {
             </View>
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     card:        { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 20, marginHorizontal: 20, marginBottom: 12, overflow: 'hidden', shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1 },

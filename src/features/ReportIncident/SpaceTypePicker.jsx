@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LOCATION_TYPES } from './helpers';
 
-export function SpaceTypePicker({ value, onChange }) {
+export const SpaceTypePicker = React.memo(function SpaceTypePicker({ value, onChange }) {
     return (
         <View style={s.block}>
             <Text style={s.label}>Tipo de espacio</Text>
@@ -27,7 +27,7 @@ export function SpaceTypePicker({ value, onChange }) {
             </View>
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     block:        { gap: 16, marginBottom: 4 },

@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { formatDateLong, getStatusConfig, ecDayName, ecDayNum } from './helpers';
 
-function TaskCard({ item, showTime }) {
+const TaskCard = React.memo(function TaskCard({ item, showTime }) {
     const router = useRouter();
     const sc = getStatusConfig(item.status);
     return (
@@ -45,9 +45,9 @@ function TaskCard({ item, showTime }) {
             </View>
         </TouchableOpacity>
     );
-}
+});
 
-export function DayView({ activeSection, selectedDate }) {
+export const DayView = React.memo(function DayView({ activeSection, selectedDate }) {
     if (!activeSection) {
         return (
             <View style={s.emptyCard}>
@@ -86,9 +86,9 @@ export function DayView({ activeSection, selectedDate }) {
             ))}
         </View>
     );
-}
+});
 
-export function WeekView({ weekDays, sections, todayKey }) {
+export const WeekView = React.memo(function WeekView({ weekDays, sections, todayKey }) {
     return (
         <View style={s.weekViewContainer}>
             {weekDays.map((dayKey) => {
@@ -136,7 +136,7 @@ export function WeekView({ weekDays, sections, todayKey }) {
             })}
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     // Shared task card

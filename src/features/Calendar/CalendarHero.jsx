@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export function CalendarHero({ visibleItems, pendingCount, inProgressCount, isConcierge, isExporting, onExport }) {
+export const CalendarHero = React.memo(function CalendarHero({ visibleItems, pendingCount, inProgressCount, isConcierge, isExporting, onExport }) {
     const router = useRouter();
     return (
         <>
@@ -68,7 +68,7 @@ export function CalendarHero({ visibleItems, pendingCount, inProgressCount, isCo
             </View>
         </>
     );
-}
+});
 
 const s = StyleSheet.create({
     hero:           { paddingTop: 56, paddingBottom: 0, paddingHorizontal: 24, overflow: 'hidden' },

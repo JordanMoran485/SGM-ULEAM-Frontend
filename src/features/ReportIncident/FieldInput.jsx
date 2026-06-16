@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export function FieldInput({ label, value, onChangeText, placeholder, multiline, error, focused, onFocus, onBlur }) {
+export const FieldInput = React.memo(function FieldInput({ label, value, onChangeText, placeholder, multiline, error, focused, onFocus, onBlur }) {
     return (
         <View style={s.fieldWrap}>
             <Text style={s.fieldLabel}>{label}</Text>
@@ -26,7 +26,7 @@ export function FieldInput({ label, value, onChangeText, placeholder, multiline,
             )}
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     fieldWrap:      { marginBottom: 16, gap: 6 },

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-export function StatusTab({ label, active, count, onPress }) {
+export const StatusTab = React.memo(function StatusTab({ label, active, count, onPress }) {
     if (active) {
         return (
             <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={s.tabWrapper}>
@@ -31,7 +31,7 @@ export function StatusTab({ label, active, count, onPress }) {
             )}
         </TouchableOpacity>
     );
-}
+});
 
 const s = StyleSheet.create({
     tabWrapper:          { borderRadius: 999, overflow: 'hidden' },

@@ -3,7 +3,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-function PhotoActions({ onTakePhoto, onPickFromLibrary, hasPhoto }) {
+const PhotoActions = React.memo(function PhotoActions({ onTakePhoto, onPickFromLibrary, hasPhoto }) {
     return (
         <View style={s.photoActions}>
             <TouchableOpacity activeOpacity={0.85} style={[s.photoBtn, { overflow: 'hidden' }]} onPress={onTakePhoto}>
@@ -18,9 +18,9 @@ function PhotoActions({ onTakePhoto, onPickFromLibrary, hasPhoto }) {
             </TouchableOpacity>
         </View>
     );
-}
+});
 
-export function PhotoPicker({ photo, index, required, loading, error, onTakePhoto, onPickFromLibrary, onPreview }) {
+export const PhotoPicker = React.memo(function PhotoPicker({ photo, index, required, loading, error, onTakePhoto, onPickFromLibrary, onPreview }) {
     return (
         <View style={s.photoSection}>
             <Text style={s.fieldLabel}>
@@ -79,7 +79,7 @@ export function PhotoPicker({ photo, index, required, loading, error, onTakePhot
             )}
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     photoSection:   { gap: 10, marginBottom: 4 },

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-export function SkeletonCard({ shimmer }) {
+export const SkeletonCard = React.memo(function SkeletonCard({ shimmer }) {
     const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.9] });
     return (
         <View style={[s.card, { paddingLeft: 20 }]}>
@@ -18,7 +18,7 @@ export function SkeletonCard({ shimmer }) {
             <Animated.View style={[sk.chevron, { opacity }]} />
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     card: { position: 'relative', flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#ffffff', borderRadius: 20, marginHorizontal: 20, marginTop: 12, padding: 16, overflow: 'hidden', shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1 },

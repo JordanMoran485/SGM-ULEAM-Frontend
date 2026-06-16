@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { DAY_HEADERS, buildEcMonthGrid, ecDayName, ecDayNum, ecMonthNum, ecMonthYearLabel } from './helpers';
 
-export function DateSelector({ weekAnchor, weekDays, isMonthExpanded, toggleMonthView, selectedDate, onSelectDate, todayKey, sections, navPrev, navNext }) {
+export const DateSelector = React.memo(function DateSelector({ weekAnchor, weekDays, isMonthExpanded, toggleMonthView, selectedDate, onSelectDate, todayKey, sections, navPrev, navNext }) {
     return (
         <View style={s.weekCard}>
             <View style={s.weekHeader}>
@@ -86,7 +86,7 @@ export function DateSelector({ weekAnchor, weekDays, isMonthExpanded, toggleMont
             )}
         </View>
     );
-}
+});
 
 const s = StyleSheet.create({
     weekCard:           { marginHorizontal: 20, marginTop: 20, marginBottom: 16, backgroundColor: '#ffffff', borderRadius: 20, padding: 16, shadowColor: '#4A6CF7', shadowOpacity: 0.09, shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
