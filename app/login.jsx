@@ -1,6 +1,6 @@
 ﻿import React, { useState } from "react";
 import {
-  ActivityIndicator, Keyboard, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -95,15 +95,13 @@ export default function LoginScreen() {
         >
           {/* ── Encabezado ── */}
           <View style={styles.header}>
-            <LinearGradient
-              colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoBadge}
-            >
-              <View style={styles.logoDeco} />
-              <MaterialCommunityIcons name="school-outline" size={36} color="rgba(255,255,255,0.95)" />
-            </LinearGradient>
+            <View style={styles.logoBadge}>
+              <Image
+                source={require('../assets/images/logo-sgm-sinfondo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
             <Text style={styles.eyebrow}>SGM Uleam</Text>
             <Text style={styles.title}>Iniciar sesión</Text>
           </View>
@@ -236,27 +234,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   logoBadge: {
-    width: 96,
-    height: 96,
+    width: 110,
+    height: 110,
     borderRadius: 28,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
     marginBottom: 14,
     shadowColor: '#2D3FE0',
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+    elevation: 4,
   },
-  logoDeco: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  logoImage: {
+    width: 180,
+    height: 180,
   },
   eyebrow: {
     color: '#4A6CF7',

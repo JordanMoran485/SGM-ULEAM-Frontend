@@ -3,6 +3,7 @@
     "name": "SGM-Uleam",
     "slug": "SGM-Uleam",
     "version": "1.0.0",
+    "icon": "./assets/images/logo-sgm.png",
     "orientation": "portrait",
     "scheme": "sgmuleam",
     "userInterfaceStyle": "automatic",
@@ -13,6 +14,7 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo-sgm.png",
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
