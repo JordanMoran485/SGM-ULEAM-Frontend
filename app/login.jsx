@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View,
@@ -97,7 +97,7 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <Image
-                source={require('../assets/images/logo-sgm-sinfondo.png')}
+                source={require('../assets/images/logo-sgm-uleam-sinfondo.png')}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
