@@ -62,8 +62,7 @@
       "router": {},
       "eas": {
         "projectId": "6b76e3d3-15a5-438c-ae2b-2a28be951910"
-      },
-      "apiBaseUrl": "http://192.168.100.9:8000"
+      }
     },
     "owner": "jordan485"
   }

@@ -28,6 +28,14 @@ function getExpoHost() {
 }
 
 function getConfiguredApiBaseUrl() {
+  // 1) Variable de entorno (Expo inyecta process.env.EXPO_PUBLIC_* en el bundle).
+  const envBaseUrl = removeTrailingSlash(process.env.EXPO_PUBLIC_API_BASE_URL);
+
+  if (envBaseUrl) {
+    return envBaseUrl;
+  }
+
+  // 2) Valor inyectado vía app.config.js / app.json (extra.apiBaseUrl).
   const expoExtraBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl;
   const manifestBaseUrl = Constants.manifest2?.extra?.expoClient?.extra?.apiBaseUrl;
   const configuredBaseUrl = removeTrailingSlash(expoExtraBaseUrl || manifestBaseUrl);
@@ -35,6 +43,8 @@ function getConfiguredApiBaseUrl() {
   if (configuredBaseUrl) {
     return configuredBaseUrl;
   }
+
+  // 3) Autodetección del host de Expo (desarrollo) o localhost.
 
   const expoHost = getExpoHost();
 
