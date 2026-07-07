@@ -6,6 +6,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
+import { getApiErrorMessage } from '../../services/api';
 import {
     firstRole, isTaskForCurrentUser, hasScheduledDate, getDateSource,
     getDateKey, formatDateLabel, formatDateLong,
@@ -15,7 +16,11 @@ import {
 } from './helpers';
 
 export function useCalendar() {
-    const toast = useToast();
+    const {
+        error: toastError,
+        info: toastInfo,
+        warning: toastWarning,
+    } = useToast();
     const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
     const isConcierge = firstRole(user) === 'conserje';
     const { weekMode, weekStart } = useLocalSearchParams();
@@ -30,10 +35,10 @@ export function useCalendar() {
     useEffect(() => {
         if (!tasksLoaded) {
             refreshTasks().catch((err) =>
-                toast.error('Error al cargar calendario', err?.message || 'No se pudieron cargar las tareas.')
+                toastError('Error al cargar calendario', getApiErrorMessage(err))
             );
         }
-    }, [tasksLoaded, refreshTasks]);
+    }, [tasksLoaded, refreshTasks, toastError]);
 
     useFocusEffect(
         useCallback(() => {
@@ -55,7 +60,7 @@ export function useCalendar() {
     useEffect(() => {
         contentOpacity.setValue(0);
         Animated.timing(contentOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
-    }, [selectedDate, viewMode]);
+    }, [contentOpacity, selectedDate, viewMode]);
 
     const toggleMonthView = useCallback(() => {
         if (Platform.OS === 'android') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -102,7 +107,7 @@ export function useCalendar() {
     const inProgressCount = visibleItems.filter((t) => t.status === 'in_progress').length;
 
     const exportSchedule = useCallback(async () => {
-        if (!visibleItems.length) { toast.info('Sin tareas', 'No hay tareas programadas para exportar.'); return; }
+        if (!visibleItems.length) { toastInfo('Sin tareas', 'No hay tareas programadas para exportar.'); return; }
         const safeName = [user?.name, user?.lastname].filter(Boolean).join('-').toLowerCase()
             .replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'conserje';
         const dateStamp = toEcuadorStr(new Date());
@@ -115,14 +120,14 @@ export function useCalendar() {
             const destUri  = FileSystem.cacheDirectory + filename;
             await FileSystem.moveAsync({ from: pdf.uri, to: destUri });
             const canShare = await Sharing.isAvailableAsync();
-            if (!canShare) { toast.warning('No disponible', 'Este dispositivo no permite compartir PDFs.'); return; }
+            if (!canShare) { toastWarning('No disponible', 'Este dispositivo no permite compartir PDFs.'); return; }
             await Sharing.shareAsync(destUri, { mimeType: 'application/pdf', dialogTitle: filename, UTI: 'com.adobe.pdf' });
         } catch (err) {
-            toast.error('Error al exportar', err?.message || 'No se pudo generar el horario.');
+            toastError('Error al exportar', getApiErrorMessage(err));
         } finally {
             setIsExporting(false);
         }
-    }, [visibleItems, user, viewMode, weekAnchor, selectedDate, toast]);
+    }, [visibleItems, user, viewMode, weekAnchor, selectedDate, toastError, toastInfo, toastWarning]);
 
     return {
         user, isConcierge, tasksLoaded,

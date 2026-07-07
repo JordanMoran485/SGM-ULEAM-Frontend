@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
+import { getApiErrorMessage } from '../../services/api';
 import { firstRole, isTaskForCurrentUser } from './helpers';
 
 export function useTasks() {
-    const toast = useToast();
+    const { error: toastError } = useToast();
     const { user, tasks, tasksLoaded, refreshTasks } = useAppContext();
 
     const [search, setSearch]             = useState('');
@@ -21,10 +22,10 @@ export function useTasks() {
     useEffect(() => {
         if (!tasksLoaded) {
             refreshTasks().catch((err) =>
-                toast.error('Error al cargar tareas', err?.message || 'No se pudieron cargar las tareas.')
+                toastError('Error al cargar tareas', getApiErrorMessage(err))
             );
         }
-    }, [tasksLoaded, refreshTasks]);
+    }, [tasksLoaded, refreshTasks, toastError]);
 
     useEffect(() => { setVisibleCount(10); }, [search, statusFilter]);
 
@@ -57,9 +58,9 @@ export function useTasks() {
         setRefreshing(true);
         setVisibleCount(10);
         try { await refreshTasks(); }
-        catch (err) { toast.error('Error', err?.message || 'No se pudieron actualizar las tareas.'); }
+        catch (err) { toastError('Error', getApiErrorMessage(err)); }
         finally { setRefreshing(false); }
-    }, [refreshTasks, toast]);
+    }, [refreshTasks, toastError]);
 
     const loadMore = useCallback(() => {
         if (hasMore) setVisibleCount((c) => c + 10);

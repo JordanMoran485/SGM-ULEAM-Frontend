@@ -27,6 +27,17 @@ const TYPE_CONF = {
   warning: { stripe: '#F59E0B', iconBg: '#FEF3C7', iconColor: '#F59E0B', icon: 'alert-outline'        },
 } as const;
 
+function sanitizeToastText(value: string | undefined) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  return value
+    .replace(/\s*\(https?:\/\/[^\s)]+\)/gi, '')
+    .replace(/\s*https?:\/\/[^\s)]+/gi, '')
+    .trim();
+}
+
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -47,7 +58,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const show = useCallback((toastData: ToastData) => {
     if (timer.current) clearTimeout(timer.current);
-    setData(toastData);
+    setData({
+      ...toastData,
+      title: sanitizeToastText(toastData.title) || toastData.title,
+      message: sanitizeToastText(toastData.message),
+    });
     setVisible(true);
     translateY.setValue(-100);
     opacity.setValue(0);

@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AppErrorBoundary from '../src/components/AppErrorBoundary';
 import { AppProvider } from '../src/context/AppContext';
 import { ToastProvider } from '../src/components/Toast';
 
@@ -64,17 +65,19 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <ToastProvider>
-          <PaperProvider>
-            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-              {/* <Stack.Screen name="Login" />
-              <Stack.Screen name="Register" /> */}
-            </Stack>
-            <NotificationNavigator />
-          </PaperProvider>
-        </ToastProvider>
-      </AppProvider>
+      <AppErrorBoundary>
+        <AppProvider>
+          <ToastProvider>
+            <PaperProvider>
+              <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+                {/* <Stack.Screen name="Login" />
+                <Stack.Screen name="Register" /> */}
+              </Stack>
+              <NotificationNavigator />
+            </PaperProvider>
+          </ToastProvider>
+        </AppProvider>
+      </AppErrorBoundary>
     </SafeAreaProvider>
   );
 }

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
+import { getApiErrorMessage } from '../../services/api';
 import { getEffectiveStatus } from './helpers';
 
 export function useIncidents() {
-    const toast = useToast();
+    const { error: toastError } = useToast();
     const { incidents, refreshIncidents, incidentsLoaded } = useAppContext();
 
     const [search, setSearch]             = useState('');
@@ -18,9 +19,9 @@ export function useIncidents() {
 
     useEffect(() => {
         if (!incidentsLoaded) {
-            refreshIncidents().catch((err) => toast.error('Error al cargar datos', err?.message));
+            refreshIncidents().catch((err) => toastError('Error al cargar datos', getApiErrorMessage(err)));
         }
-    }, [incidentsLoaded, refreshIncidents]);
+    }, [incidentsLoaded, refreshIncidents, toastError]);
 
     useEffect(() => { setVisibleCount(10); }, [search, statusFilter]);
 
@@ -61,11 +62,11 @@ export function useIncidents() {
         try {
             await refreshIncidents();
         } catch (err) {
-            toast.error('Error al actualizar datos', err?.message);
+            toastError('Error al actualizar datos', getApiErrorMessage(err));
         } finally {
             setRefreshing(false);
         }
-    }, [refreshIncidents, toast]);
+    }, [refreshIncidents, toastError]);
 
     const loadMore = useCallback(() => {
         if (hasMore) setVisibleCount((c) => c + 10);

@@ -11,7 +11,7 @@ import { getStatusConfig, formatTaskDate } from '../../src/features/Tasks/helper
 export default function TasksScreen() {
     const router = useRouter();
     const {
-        tasksLoaded, isConserje, screenTitle,
+        tasksLoaded, screenTitle,
         search, setSearch,
         statusFilter, setStatusFilter,
         refreshing, refreshScreen,

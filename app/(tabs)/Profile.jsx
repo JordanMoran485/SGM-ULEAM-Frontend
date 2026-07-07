@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     Image, ScrollView, StyleSheet,
     Text, TouchableOpacity, View,
@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAppContext } from '../../src/context/AppContext';
 import { ActionSheet } from '../../src/components/ActionSheet';
 import { useToast } from '../../src/components/Toast';
+import { getApiErrorMessage } from '../../src/services/api';
 
 export default function Profile() {
     const router = useRouter();
@@ -60,7 +61,7 @@ export default function Profile() {
                 setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
-            toast.error('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+            toast.error('No se pudo actualizar la foto', getApiErrorMessage(error));
         }
     };
 
@@ -83,7 +84,7 @@ export default function Profile() {
                 setAvatarRefreshKey((k) => k + 1);
             }
         } catch (error) {
-            toast.error('No se pudo actualizar la foto', error?.message || 'Intenta nuevamente.');
+            toast.error('No se pudo actualizar la foto', getApiErrorMessage(error));
         }
     };
 

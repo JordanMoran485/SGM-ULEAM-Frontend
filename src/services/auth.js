@@ -1,4 +1,4 @@
-import { buildApiUrl, buildStorageUrl } from './api';
+import { buildApiUrl, buildStorageUrl, sanitizeApiErrorMessage } from './api';
 
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
@@ -86,8 +86,10 @@ export async function uploadProfileImage(token, image) {
 
   if (!response.ok) {
     const error = new Error(
-      (typeof data === 'object' ? data?.message : null) ||
-      `Request failed with status ${response.status} at ${buildApiUrl('/api/profile/image')}`
+      sanitizeApiErrorMessage(
+        typeof data === 'object' ? data?.message : null,
+        `Error del servidor (${response.status}).`
+      )
     );
     error.status = response.status;
     error.data = data;

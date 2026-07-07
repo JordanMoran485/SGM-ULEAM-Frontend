@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
 import { useShimmer } from '../../hooks/useShimmer';
+import { getApiErrorMessage } from '../../services/api';
 import { parseWeekLabel } from './helpers';
 
 export function useNotifications() {
-    const toast  = useToast();
+    const { error: toastError } = useToast();
     const router = useRouter();
     const {
         notifications, notificationsLoaded, refreshNotifications,
@@ -25,10 +26,10 @@ export function useNotifications() {
     useEffect(() => {
         if (!notificationsLoaded) {
             refreshNotifications().catch((err) => {
-                toast.error('Error', err?.message || 'No se pudieron cargar las notificaciones.');
+                toastError('Error', getApiErrorMessage(err));
             });
         }
-    }, [notificationsLoaded, refreshNotifications]);
+    }, [notificationsLoaded, refreshNotifications, toastError]);
 
     useEffect(() => { setVisibleCount(10); }, [filter]);
 
@@ -36,9 +37,9 @@ export function useNotifications() {
         try {
             await markAllNotificationsRead();
         } catch (err) {
-            toast.error('Error', err?.message || 'No se pudieron marcar las notificaciones.');
+            toastError('Error', getApiErrorMessage(err));
         }
-    }, [markAllNotificationsRead, toast]);
+    }, [markAllNotificationsRead, toastError]);
 
     const handleOpen = useCallback(async (notification) => {
         try {

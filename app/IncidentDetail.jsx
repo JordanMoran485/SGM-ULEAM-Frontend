@@ -1,12 +1,13 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Modal, Pressable, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-
-const CARD_WIDTH = Dimensions.get('window').width - 40;
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppContext } from '../src/context/AppContext';
 import { useToast } from '../src/components/Toast';
+import { getApiErrorMessage } from '../src/services/api';
+
+const CARD_WIDTH = Dimensions.get('window').width - 40;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -78,7 +79,6 @@ export default function IncidentDetail() {
     const router = useRouter();
     const { incidents, tasks, incidentsLoaded, tasksLoaded, refreshIncidents, refreshTasks, updateTaskState, user } = useAppContext();
     const toast = useToast();
-    const [imageFailed, setImageFailed]         = useState(false);
     const [isRecovering, setIsRecovering]       = useState(false);
     const [isSubmitting, setIsSubmitting]       = useState(false);
     const [fullscreenIndex, setFullscreenIndex] = useState(null);
@@ -108,7 +108,7 @@ export default function IncidentDetail() {
                 await refreshIncidents();
                 await refreshTasks();
             } catch (e) {
-                console.warn('No se pudo actualizar el detalle:', e?.message);
+                console.warn('No se pudo actualizar el detalle:', getApiErrorMessage(e));
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +129,7 @@ export default function IncidentDetail() {
                 await refreshIncidents();
                 await refreshTasks();
             }
-        })().catch((e) => console.error('Error al recuperar detalle:', e))
+        })().catch((e) => console.error('Error al recuperar detalle:', getApiErrorMessage(e)))
             .finally(() => { if (mounted) setIsRecovering(false); });
         return () => { mounted = false; };
     }, [incident, incidentsLoaded, recordType, refreshIncidents, refreshTasks, tasksLoaded]);
@@ -141,7 +141,7 @@ export default function IncidentDetail() {
             await updateTaskState(incident.id, nextStatus);
             await Promise.all([refreshTasks(), refreshIncidents()]);
         } catch (e) {
-            toast.error('No se pudo actualizar', e?.message || 'Intenta de nuevo.');
+            toast.error('No se pudo actualizar', getApiErrorMessage(e));
         } finally {
             setIsSubmitting(false);
         }
@@ -149,7 +149,6 @@ export default function IncidentDetail() {
 
     const imageUri    = incident?.image || incident?.latestTask?.image || incident?.tasks?.[0]?.image || null;
     const images      = (incident?.images?.length ? incident.images : (imageUri ? [imageUri] : [])).filter(Boolean);
-    const imageSource = imageUri && !imageFailed ? { uri: imageUri } : null;
     const sc          = getStatusConfig(incident?.status, incident?.approvalStatus);
     const userRole    = Array.isArray(user?.roles) ? user.roles[0]?.name : user?.role;
     const isOwnTask   = incident?.userId != null && user?.id != null
@@ -217,12 +216,11 @@ export default function IncidentDetail() {
                                     style={s.imageCard}
                                     onPress={() => setFullscreenIndex(i)}
                                 >
-                                    <Image
-                                        source={{ uri }}
-                                        style={s.image}
-                                        resizeMode="cover"
-                                        onError={() => i === 0 && setImageFailed(true)}
-                                    />
+                                        <Image
+                                            source={{ uri }}
+                                            style={s.image}
+                                            resizeMode="cover"
+                                        />
                                 </TouchableOpacity>
                             ))}
                         </ScrollView>

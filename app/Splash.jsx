@@ -23,7 +23,7 @@ export default function SplashScreen() {
     ]).start(() => {
       router.replace("/Login");
     });
-  }, []);
+  }, [logoScale, opacity, router]);
 
   return (
     <View style={styles.screen}>

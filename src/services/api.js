@@ -2,9 +2,56 @@ import Constants from 'expo-constants';
 
 const FALLBACK_API_PORT = '8000';
 const LOCALHOST_API_BASE_URL = `http://127.0.0.1:${FALLBACK_API_PORT}`;
+const DEFAULT_NETWORK_ERROR_MESSAGE = 'No hay conexión con el servidor.';
+const DEFAULT_SERVER_ERROR_MESSAGE = 'El servidor no pudo procesar la solicitud.';
 
 function removeTrailingSlash(value) {
   return typeof value === 'string' ? value.replace(/\/+$/, '') : '';
+}
+
+function stripUrlFromMessage(message) {
+  if (typeof message !== 'string') {
+    return '';
+  }
+
+  return message
+    .replace(/\s*\(https?:\/\/[^\s)]+\)/gi, '')
+    .replace(/\s*at\s+https?:\/\/[^\s)]+/gi, '')
+    .replace(/\s*https?:\/\/[^\s)]+/gi, '')
+    .trim();
+}
+
+export function sanitizeApiErrorMessage(message, fallback = DEFAULT_SERVER_ERROR_MESSAGE) {
+  const cleaned = stripUrlFromMessage(message);
+  return cleaned || fallback;
+}
+
+export function getApiErrorMessage(error) {
+  if (!error) {
+    return DEFAULT_NETWORK_ERROR_MESSAGE;
+  }
+
+  if (error.status === 401) {
+    return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  }
+
+  if (error.status === 403) {
+    return 'No tienes permisos para realizar esta acción.';
+  }
+
+  if (error.status === 404) {
+    return 'El recurso solicitado no fue encontrado.';
+  }
+
+  if (error.status === 422) {
+    return sanitizeApiErrorMessage(error?.data?.message, 'Hay campos inválidos en el formulario.');
+  }
+
+  if (error.status) {
+    return sanitizeApiErrorMessage(error?.message, `Error del servidor (${error.status}).`);
+  }
+
+  return sanitizeApiErrorMessage(error?.message, DEFAULT_NETWORK_ERROR_MESSAGE);
 }
 
 function extractHostCandidate(value) {
@@ -142,8 +189,10 @@ export async function fetchJson(path, options = {}) {
 
     if (!response.ok) {
       const error = new Error(
-        (typeof data === 'object' ? data?.message : null) ||
-        `Request failed with status ${response.status} at ${url}`
+        sanitizeApiErrorMessage(
+          (typeof data === 'object' ? data?.message : null),
+          `Error del servidor (${response.status}).`
+        )
       );
       error.status = response.status;
       error.data = data;
@@ -157,9 +206,7 @@ export async function fetchJson(path, options = {}) {
       error.url = url;
     }
 
-    if (!error.message?.includes(url)) {
-      error.message = `${error.message} (${url})`;
-    }
+    error.message = getApiErrorMessage(error);
 
     throw error;
   }

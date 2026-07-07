@@ -16,7 +16,7 @@ export default function CalendarScreen() {
     const {
         isConcierge, tasksLoaded,
         selectedDate, setSelectedDate,
-        weekAnchor, setWeekAnchor,
+        weekAnchor,
         isMonthExpanded, toggleMonthView,
         viewMode, setViewMode,
         isExporting, exportSchedule,

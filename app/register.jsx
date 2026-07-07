@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator, Keyboard, ScrollView, StyleSheet,
   Text, TouchableOpacity, TouchableWithoutFeedback, View,
@@ -11,7 +11,7 @@ import { HelperText, TextInput } from "react-native-paper";
 import { Dropdown } from 'react-native-element-dropdown';
 import { useAppContext } from '../src/context/AppContext';
 import { useToast } from '../src/components/Toast';
-import { buildApiUrl } from '../src/services/api';
+import { buildApiUrl, getApiErrorMessage, sanitizeApiErrorMessage } from '../src/services/api';
 import { extractAuthPayload } from '../src/services/auth';
 import { getRegistrationCatalogs } from '../src/services/catalogs';
 
@@ -109,11 +109,11 @@ export default function RegisterScreen() {
           });
         });
       } else {
-        toast.warning('Atención', result.message || 'Ocurrió un error inesperado.');
+        toast.warning('Atención', sanitizeApiErrorMessage(result.message, 'Ocurrió un error inesperado.'));
       }
     } catch (error) {
       console.error("Error en submit:", error);
-      toast.error('Error de conexión', 'No se pudo establecer contacto con el servidor de la Uleam.');
+      toast.error('Error de conexión', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }

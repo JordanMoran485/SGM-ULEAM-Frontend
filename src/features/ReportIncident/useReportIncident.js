@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
+import { getApiErrorMessage } from '../../services/api';
 import { createIncident } from '../../services/incidents';
 import { normalizePickedAsset, buildLocationString } from './helpers';
 
@@ -87,7 +88,7 @@ export function useReportIncident() {
             toast.success('Incidencia reportada', 'La incidencia fue enviada correctamente.');
             router.replace('/(tabs)/Incidents');
         } catch (error) {
-            toast.error('No se pudo reportar', error?.message || 'El servidor rechazó la solicitud.');
+            toast.error('No se pudo reportar', getApiErrorMessage(error));
         } finally {
             setLoading(false);
             setUploadProgress(0);

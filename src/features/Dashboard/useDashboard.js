@@ -4,7 +4,7 @@ import { useShimmer } from '../../hooks/useShimmer';
 import { useFocusEffect } from 'expo-router';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
-import { API_BASE_URL } from '../../services/api';
+import { API_BASE_URL, getApiErrorMessage } from '../../services/api';
 
 function toEcuadorStr(d) {
     const ec = new Date(d.getTime() - 5 * 60 * 60 * 1000);
@@ -12,7 +12,7 @@ function toEcuadorStr(d) {
 }
 
 export function useDashboard() {
-    const toast = useToast();
+    const { error: toastError } = useToast();
     const {
         user, stats, incidents, incidentsLoaded, refreshIncidents,
         tasks, tasksLoaded, refreshTasks, notifications,
@@ -34,13 +34,13 @@ export function useDashboard() {
         if (!tasksLoaded) {
             console.log('Dashboard API base URL:', API_BASE_URL);
             refreshTasks().catch((err) => {
-                toast.error('Error al cargar', err?.message || 'No se pudieron cargar las tareas.');
+                toastError('Error al cargar', getApiErrorMessage(err));
             });
         }
         if (!incidentsLoaded) {
             refreshIncidents().catch((err) => console.error('Error incidencias:', err));
         }
-    }, [incidentsLoaded, refreshIncidents, tasksLoaded, refreshTasks]);
+    }, [incidentsLoaded, refreshIncidents, tasksLoaded, refreshTasks, toastError]);
 
     useEffect(() => {
         if (tasksLoaded && incidentsLoaded) animateBars();

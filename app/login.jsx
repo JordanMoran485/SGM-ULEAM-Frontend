@@ -6,11 +6,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { HelperText, TextInput } from "react-native-paper";
 import { useAppContext } from '../src/context/AppContext';
 import { useToast } from '../src/components/Toast';
-import { buildApiUrl } from '../src/services/api';
+import { buildApiUrl, getApiErrorMessage } from '../src/services/api';
 import { extractAuthPayload } from '../src/services/auth';
 
 const customTheme = {
@@ -76,7 +75,7 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error("Error de conexión técnica:", error.message);
-      toast.error('Error de red', 'No hay conexión con el servidor de la Uleam. Revisa tu internet.');
+      toast.error('Error de red', getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
