@@ -3,7 +3,7 @@
     "name": "SGM-Uleam",
     "slug": "SGM-Uleam",
     "version": "1.0.0",
-    "icon": "./assets/images/logo-sgm.png",
+    "icon": "./assets/images/logo-sgm-uleam-sinfondo.png",
     "orientation": "portrait",
     "scheme": "sgmuleam",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo-sgm.png",
+        "foregroundImage": "./assets/images/logo-sgm-uleam-sinfondo.png",
         "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
@@ -26,7 +26,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/images/logo-sgm-uleam-sinfondo.png"
     },
     "plugins": [
       "expo-router",

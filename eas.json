@@ -8,11 +8,14 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://192.168.100.9:8000"
+        "EXPO_PUBLIC_API_BASE_URL": "https://jordan.spondycraft.net"
       }
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://jordan.spondycraft.net"
       }
