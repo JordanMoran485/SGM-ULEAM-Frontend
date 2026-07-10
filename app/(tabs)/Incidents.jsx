@@ -9,6 +9,7 @@ import { getEffectiveStatus, getStatusConfig, parseLocation, formatRelative, SPA
 
 export default function IncidentsScreen() {
     const router = useRouter();
+    const refreshOffset = 120;
     const {
         displayedItems, filteredItems, hasMore, loadMore,
         refreshing, refreshScreen,
@@ -29,6 +30,7 @@ export default function IncidentsScreen() {
                 keyExtractor={(item) => String(item.id)}
                 refreshing={refreshing}
                 onRefresh={refreshScreen}
+                progressViewOffset={refreshOffset}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={8}
                 windowSize={5}

@@ -10,6 +10,7 @@ import { getStatusConfig, formatTaskDate } from '../../src/features/Tasks/helper
 
 export default function TasksScreen() {
     const router = useRouter();
+    const refreshOffset = 120;
     const {
         tasksLoaded, screenTitle,
         search, setSearch,
@@ -32,6 +33,7 @@ export default function TasksScreen() {
                 keyExtractor={(item) => String(item.id)}
                 refreshing={refreshing}
                 onRefresh={refreshScreen}
+                progressViewOffset={refreshOffset}
                 showsVerticalScrollIndicator={false}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={8}

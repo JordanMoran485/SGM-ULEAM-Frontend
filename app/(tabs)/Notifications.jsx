@@ -8,6 +8,7 @@ import { SkeletonCard } from '../../src/features/Notifications/SkeletonCard';
 import { getNotificationType, formatRelativeDate } from '../../src/features/Notifications/helpers';
 
 export default function NotificationsScreen() {
+    const refreshOffset = 100;
     const {
         notificationsLoaded, isLoading, shimmer, scrollAnim,
         filter, setFilter,
@@ -28,6 +29,7 @@ export default function NotificationsScreen() {
                 keyExtractor={(item) => String(item.id)}
                 refreshing={isLoading && notificationsLoaded}
                 onRefresh={onRefresh}
+                progressViewOffset={refreshOffset}
                 showsVerticalScrollIndicator={false}
                 removeClippedSubviews={true}
                 maxToRenderPerBatch={8}
