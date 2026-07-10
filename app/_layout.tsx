@@ -70,8 +70,6 @@ export default function RootLayout() {
           <ToastProvider>
             <PaperProvider>
               <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-                {/* <Stack.Screen name="Login" />
-                <Stack.Screen name="Register" /> */}
               </Stack>
               <NotificationNavigator />
             </PaperProvider>

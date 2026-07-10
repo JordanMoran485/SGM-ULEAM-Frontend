@@ -1,25 +1,34 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Platform,
-  ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View,
+  ActivityIndicator,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { Controller, useForm } from 'react-hook-form';
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
+import { Controller, useForm } from "react-hook-form";
 import { HelperText, TextInput } from "react-native-paper";
-import { useAppContext } from '../src/context/AppContext';
-import { useToast } from '../src/components/Toast';
-import { buildApiUrl, getApiErrorMessage } from '../src/services/api';
-import { extractAuthPayload } from '../src/services/auth';
+import { useAppContext } from "../src/context/AppContext";
+import { useToast } from "../src/components/Toast";
+import { buildApiUrl, getApiErrorMessage } from "../src/services/api";
+import { extractAuthPayload } from "../src/services/auth";
 
 const customTheme = {
   colors: {
-    primary: '#2D3FE0',
-    outline: '#C9D4FF',
-    onSurfaceVariant: '#8F95B2',
-    surface: '#FFFFFF',
-    error: '#F43F5E',
-  }
+    primary: "#2D3FE0",
+    outline: "#C9D4FF",
+    onSurfaceVariant: "#8F95B2",
+    surface: "#FFFFFF",
+    error: "#F43F5E",
+  },
 };
 
 export default function LoginScreen() {
@@ -28,24 +37,29 @@ export default function LoginScreen() {
   const toast = useToast();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { control, handleSubmit, setError, formState: { errors } } = useForm({
+  const {
+    control,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
-      email: '',
-      password: '',
-    }
+      email: "",
+      password: "",
+    },
   });
 
   const onSubmit = async (formData) => {
     setLoading(true);
 
     try {
-      const response = await fetch(buildApiUrl('/api/login'), {
-        method: 'POST',
+      const response = await fetch(buildApiUrl("/api/login"), {
+        method: "POST",
         headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
+          Accept: "application/json",
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
 
       const result = await response.json();
@@ -54,12 +68,12 @@ export default function LoginScreen() {
         const { user, token } = extractAuthPayload(result);
 
         if (!token) {
-          toast.error('Error de autenticación', 'El backend respondió sin token de acceso.');
+          toast.error("Error de autenticacion", "El backend respondio sin token de acceso.");
           return;
         }
 
         login(user, token);
-        router.replace('/');
+        router.replace("/");
       } else if (result.errors) {
         Object.keys(result.errors).forEach((key) => {
           setError(key, { type: "server", message: result.errors[key][0] });
@@ -67,15 +81,15 @@ export default function LoginScreen() {
       } else if (result.message) {
         const errorMsg = result.message.toLowerCase();
 
-        if (errorMsg.includes('contraseña')) {
+        if (errorMsg.includes("contrasena")) {
           setError("password", { type: "server", message: result.message });
         } else {
           setError("email", { type: "server", message: result.message });
         }
       }
     } catch (error) {
-      console.error("Error de conexión técnica:", error.message);
-      toast.error('Error de red', getApiErrorMessage(error));
+      console.error("Error de conexion tecnica:", error.message);
+      toast.error("Error de red", getApiErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -84,7 +98,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
@@ -92,20 +106,18 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Encabezado ── */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <Image
-                source={require('../assets/images/logo-sgm-uleam-sinfondo.png')}
+                source={require("../assets/images/logo-sgm-uleam-sinfondo.png")}
                 style={styles.logoImage}
                 resizeMode="contain"
               />
             </View>
             <Text style={styles.eyebrow}>SGM Uleam</Text>
-            <Text style={styles.title}>Iniciar sesión</Text>
+            <Text style={styles.title}>Iniciar sesion</Text>
           </View>
 
-          {/* ── Card del formulario ── */}
           <View style={styles.card}>
             <Controller
               control={control}
@@ -114,8 +126,8 @@ export default function LoginScreen() {
                 required: "El correo es obligatorio",
                 pattern: {
                   value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                  message: "Correo inválido"
-                }
+                  message: "Correo invalido",
+                },
               }}
               render={({ field: { onChange, value } }) => (
                 <View style={styles.field}>
@@ -145,20 +157,20 @@ export default function LoginScreen() {
               control={control}
               name="password"
               rules={{
-                required: "La contraseña es obligatoria",
+                required: "La contrasena es obligatoria",
                 maxLength: {
                   value: 40,
-                  message: "La contraseña no puede exceder los 40 caracteres"
+                  message: "La contrasena no puede exceder los 40 caracteres",
                 },
                 minLength: {
                   value: 5,
-                  message: "La contraseña debe tener al menos 5 caracteres"
-                }
+                  message: "La contrasena debe tener al menos 5 caracteres",
+                },
               }}
               render={({ field: { onChange, value } }) => (
                 <View style={styles.field}>
                   <TextInput
-                    label="Contraseña"
+                    label="Contrasena"
                     onChangeText={onChange}
                     value={value}
                     secureTextEntry={!isPasswordVisible}
@@ -192,7 +204,7 @@ export default function LoginScreen() {
               style={styles.primaryButton}
             >
               <LinearGradient
-                colors={['#2D3FE0', '#4A6CF7']}
+                colors={["#2D3FE0", "#4A6CF7"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.primaryButtonInner}
@@ -200,14 +212,6 @@ export default function LoginScreen() {
                 {loading && <ActivityIndicator size="small" color="#ffffff" />}
                 <Text style={styles.primaryButtonText}>Entrar</Text>
               </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Footer ── */}
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>¿No tienes una cuenta?</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => router.replace("Register")}>
-              <Text style={styles.footerLink}>Registrarse</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -219,16 +223,16 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: "#EEF2FF",
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: 20,
     paddingVertical: 48,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 28,
     gap: 6,
   },
@@ -236,11 +240,11 @@ const styles = StyleSheet.create({
     width: 110,
     height: 110,
     borderRadius: 28,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 14,
-    shadowColor: '#2D3FE0',
+    shadowColor: "#2D3FE0",
     shadowOpacity: 0.18,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -251,25 +255,25 @@ const styles = StyleSheet.create({
     height: 180,
   },
   eyebrow: {
-    color: '#4A6CF7',
+    color: "#4A6CF7",
     fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 1.1,
   },
   title: {
-    color: '#1A1F36',
+    color: "#1A1F36",
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 22,
-    shadowColor: '#4A6CF7',
-    shadowOpacity: 0.10,
+    shadowColor: "#4A6CF7",
+    shadowOpacity: 0.1,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
@@ -278,43 +282,26 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   inputOutline: {
     borderRadius: 16,
   },
   primaryButton: {
     borderRadius: 20,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginTop: 8,
   },
   primaryButtonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
     paddingVertical: 16,
   },
   primaryButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 15,
-    fontWeight: '700',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    gap: 6,
-  },
-  footerText: {
-    color: '#8F95B2',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footerLink: {
-    color: '#2D3FE0',
-    fontSize: 14,
-    fontWeight: '800',
+    fontWeight: "700",
   },
 });
