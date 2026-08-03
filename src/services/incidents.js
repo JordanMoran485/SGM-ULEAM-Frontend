@@ -179,6 +179,21 @@ function buildUploadFile(image) {
   };
 }
 
+function appendImageFields(formData, image, image2) {
+  const primaryFile = buildUploadFile(image);
+  const secondaryFile = buildUploadFile(image2);
+
+  if (primaryFile) {
+    formData.append('image', primaryFile);
+    formData.append('photo', primaryFile);
+    formData.append('file', primaryFile);
+  }
+
+  if (secondaryFile) {
+    formData.append('image2', secondaryFile);
+  }
+}
+
 export function createIncident(token, payload, onProgress) {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
@@ -189,11 +204,7 @@ export function createIncident(token, payload, onProgress) {
     appendIfPresent(formData, 'category', payload?.category);
     appendIfPresent(formData, 'status', payload?.status || 'pending');
 
-    const uploadFile = buildUploadFile(payload?.image);
-    if (uploadFile) formData.append('image', uploadFile);
-
-    const uploadFile2 = buildUploadFile(payload?.image2);
-    if (uploadFile2) formData.append('image2', uploadFile2);
+    appendImageFields(formData, payload?.image, payload?.image2);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', buildApiUrl('/api/incidents'));
