@@ -1,7 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import {
-    Image, ScrollView, StyleSheet,
-    Text, TouchableOpacity, View,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Stack, useRouter } from 'expo-router';
@@ -32,7 +36,7 @@ export default function Profile() {
         || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
     const supervisorLabel = user?.supervisor
         ? [user.supervisor.name, user.supervisor.lastname].filter(Boolean).join(' ')
-        : null;
+        : 'Kevin Moran';
 
     const remoteProfileImage = useMemo(() => {
         if (!user?.profile_photo_url) return null;
@@ -49,12 +53,14 @@ export default function Profile() {
                 toast.warning('Permiso requerido', 'Debes permitir el acceso a tus fotos para cambiar el avatar.');
                 return;
             }
+
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
             });
+
             if (!result.canceled && result.assets?.[0]?.uri) {
                 setLocalProfilePreview(result.assets[0].uri);
                 await updateProfileImage(result.assets[0]);
@@ -69,15 +75,17 @@ export default function Profile() {
         try {
             const permission = await ImagePicker.requestCameraPermissionsAsync();
             if (!permission.granted) {
-                toast.warning('Permiso requerido', 'Debes permitir el acceso a la cámara para tomar la foto.');
+                toast.warning('Permiso requerido', 'Debes permitir el acceso a la camara para tomar la foto.');
                 return;
             }
+
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ['images'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.8,
             });
+
             if (!result.canceled && result.assets?.[0]?.uri) {
                 setLocalProfilePreview(result.assets[0].uri);
                 await updateProfileImage(result.assets[0]);
@@ -97,128 +105,118 @@ export default function Profile() {
 
     return (
         <>
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-        >
-            <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
-
-            {/* ── Hero card ── */}
-            <LinearGradient
-                colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.heroCard}
+            <ScrollView
+                style={styles.container}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
             >
-                <View style={styles.decCircle1} />
-                <View style={styles.decCircle2} />
+                <Stack.Screen options={{ title: '', headerTransparent: true, headerShadowVisible: false }} />
 
-                <TouchableOpacity onPress={handlePickProfileImage} activeOpacity={0.85} style={styles.avatarWrapper}>
-                    <View style={styles.avatarRing}>
-                        {avatarUri ? (
-                            <Image
-                                key={avatarUri}
-                                source={{ uri: avatarUri }}
-                                style={styles.avatarImage}
-                                onError={() => localProfilePreview && setLocalProfilePreview(null)}
-                            />
-                        ) : (
-                            <MaterialCommunityIcons name="account" size={52} color="#4A6CF7" />
-                        )}
-                    </View>
-                    <View style={styles.avatarEditBadge}>
-                        <MaterialCommunityIcons name="camera" size={13} color="#4A6CF7" />
-                    </View>
-                </TouchableOpacity>
-
-                <Text style={styles.heroName}>{displayName}</Text>
-
-                <View style={styles.heroBadge}>
-                    <Text style={styles.heroBadgeText}>{userRole}</Text>
-                </View>
-
-            </LinearGradient>
-
-            {/* ── Mi información ── */}
-            <Text style={styles.sectionLabel}>Mi información</Text>
-
-            <View style={styles.card}>
-                <View style={styles.listRow}>
-                    <View style={styles.iconBox}>
-                        <MaterialCommunityIcons name="account-outline" size={18} color="#4A6CF7" />
-                    </View>
-                    <View style={styles.listContent}>
-                        <Text style={styles.listLabel}>Nombres completos</Text>
-                        <Text style={styles.listValue}>{displayName}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.listRow}>
-                    <View style={styles.iconBox}>
-                        <MaterialCommunityIcons name="email-outline" size={18} color="#4A6CF7" />
-                    </View>
-                    <View style={styles.listContent}>
-                        <Text style={styles.listLabel}>Correo electrónico</Text>
-                        <Text style={styles.listValue}>{userEmail}</Text>
-                    </View>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.listRow}>
-                    <View style={styles.iconBox}>
-                        <MaterialCommunityIcons name="school-outline" size={18} color="#4A6CF7" />
-                    </View>
-                    <View style={styles.listContent}>
-                        <Text style={styles.listLabel}>Facultad</Text>
-                        <Text style={styles.listValue}>{facultyLabel}</Text>
-                    </View>
-                </View>
-
-                {supervisorLabel && (
-                    <>
-                        <View style={styles.divider} />
-                        <View style={styles.listRow}>
-                            <View style={styles.iconBox}>
-                                <MaterialCommunityIcons name="account-tie-outline" size={18} color="#4A6CF7" />
-                            </View>
-                            <View style={styles.listContent}>
-                                <Text style={styles.listLabel}>Supervisor asignado</Text>
-                                <Text style={styles.listValue}>{supervisorLabel}</Text>
-                            </View>
-                        </View>
-                    </>
-                )}
-
-            </View>
-
-            {/* ── Cerrar sesión ── */}
-            <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutWrapper}>
                 <LinearGradient
-                    colors={['#F43F5E', '#FB7185']}
+                    colors={['#2D3FE0', '#4A6CF7', '#7B9FFF']}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.logoutBtn}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.heroCard}
                 >
-                    <MaterialCommunityIcons name="logout-variant" size={18} color="#fff" />
-                    <Text style={styles.logoutBtnText}>Cerrar sesión</Text>
+                    <View style={styles.decCircle1} />
+                    <View style={styles.decCircle2} />
+
+                    <TouchableOpacity onPress={handlePickProfileImage} activeOpacity={0.85} style={styles.avatarWrapper}>
+                        <View style={styles.avatarRing}>
+                            {avatarUri ? (
+                                <Image
+                                    key={avatarUri}
+                                    source={{ uri: avatarUri }}
+                                    style={styles.avatarImage}
+                                    onError={() => localProfilePreview && setLocalProfilePreview(null)}
+                                />
+                            ) : (
+                                <MaterialCommunityIcons name="account" size={52} color="#4A6CF7" />
+                            )}
+                        </View>
+                        <View style={styles.avatarEditBadge}>
+                            <MaterialCommunityIcons name="image-outline" size={13} color="#4A6CF7" />
+                        </View>
+                    </TouchableOpacity>
+
+                    <Text style={styles.heroName}>{displayName}</Text>
+
+                    <View style={styles.heroBadge}>
+                        <Text style={styles.heroBadgeText}>{userRole}</Text>
+                    </View>
                 </LinearGradient>
-            </TouchableOpacity>
 
-        </ScrollView>
+                <Text style={styles.sectionLabel}>Mi informacion</Text>
 
-        <ActionSheet
-            visible={photoSheetVisible}
-            title="Foto de perfil"
-            onClose={() => setPhotoSheetVisible(false)}
-            options={[
-                { icon: 'camera-outline', label: 'Tomar foto',        onPress: takePhoto },
-                { icon: 'image-outline',  label: 'Elegir de galería', onPress: pickFromLibrary },
-            ]}
-        />
+                <View style={styles.card}>
+                    <View style={styles.listRow}>
+                        <View style={styles.iconBox}>
+                            <MaterialCommunityIcons name="account-outline" size={18} color="#4A6CF7" />
+                        </View>
+                        <View style={styles.listContent}>
+                            <Text style={styles.listLabel}>Nombres completos</Text>
+                            <Text style={styles.listValue}>{displayName}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.listRow}>
+                        <View style={styles.iconBox}>
+                            <MaterialCommunityIcons name="email-outline" size={18} color="#4A6CF7" />
+                        </View>
+                        <View style={styles.listContent}>
+                            <Text style={styles.listLabel}>Correo electronico</Text>
+                            <Text style={styles.listValue}>{userEmail}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    <View style={styles.listRow}>
+                        <View style={styles.iconBox}>
+                            <MaterialCommunityIcons name="school-outline" size={18} color="#4A6CF7" />
+                        </View>
+                        <View style={styles.listContent}>
+                            <Text style={styles.listLabel}>Facultad</Text>
+                            <Text style={styles.listValue}>{facultyLabel}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+                    <View style={styles.listRow}>
+                        <View style={styles.iconBox}>
+                            <MaterialCommunityIcons name="account-tie-outline" size={18} color="#4A6CF7" />
+                        </View>
+                        <View style={styles.listContent}>
+                            <Text style={styles.listLabel}>Supervisor asignado</Text>
+                            <Text style={styles.listValue}>{supervisorLabel}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutWrapper}>
+                    <LinearGradient
+                        colors={['#F43F5E', '#FB7185']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.logoutBtn}
+                    >
+                        <MaterialCommunityIcons name="logout-variant" size={18} color="#fff" />
+                        <Text style={styles.logoutBtnText}>Cerrar sesion</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </ScrollView>
+
+            <ActionSheet
+                visible={photoSheetVisible}
+                title="Foto de perfil"
+                onClose={() => setPhotoSheetVisible(false)}
+                options={[
+                    { icon: 'camera-outline', label: 'Tomar foto', onPress: takePhoto },
+                    { icon: 'image-outline', label: 'Elegir de galeria', onPress: pickFromLibrary },
+                ]}
+            />
         </>
     );
 }
@@ -233,8 +231,6 @@ const styles = StyleSheet.create({
         paddingTop: 64,
         paddingBottom: 40,
     },
-
-    // Hero
     heroCard: {
         borderRadius: 24,
         padding: 28,
@@ -323,7 +319,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
-    // Section
     sectionLabel: {
         color: '#8F95B2',
         fontSize: 11,
@@ -333,8 +328,6 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         marginLeft: 4,
     },
-
-    // Card
     card: {
         backgroundColor: '#ffffff',
         borderRadius: 20,
@@ -346,8 +339,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         elevation: 1,
     },
-
-    // List row
     listRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -384,8 +375,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F3FF',
         marginHorizontal: 16,
     },
-
-    // Logout
     logoutWrapper: {
         borderRadius: 20,
         overflow: 'hidden',

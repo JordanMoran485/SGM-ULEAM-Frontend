@@ -23,7 +23,8 @@ export default function ReportIncidentScreen() {
         errors, focused, setFocused,
         locationType, setLocationType,
         clearError,
-        handleTakePhoto, handlePickFromLibrary, handleSubmit,
+        handleTakePhoto,
+        handlePickFromLibrary, handleSubmit,
     } = useReportIncident();
 
     return (

@@ -110,19 +110,25 @@ export function buildApiUrl(path = '') {
   return `${API_BASE_URL}${normalizedPath}`;
 }
 
+function isAbsoluteStorageUrl(value) {
+  return typeof value === 'string' && /^(https?:\/\/|\/\/|data:)/i.test(value);
+}
+
 export function buildStorageUrl(path = '') {
   if (!path) {
     return null;
   }
 
-  if (typeof path === 'string' && path.startsWith('http')) {
+  if (typeof path === 'string' && isAbsoluteStorageUrl(path)) {
     return path;
   }
 
   const normalizedPath = String(path)
+    .trim()
     .replace(/^\/+/, '')
     .replace(/^storage\/+/i, '');
-  return `${STORAGE_BASE_URL}/${normalizedPath}`;
+
+  return normalizedPath ? `${STORAGE_BASE_URL}/${normalizedPath}` : null;
 }
 
 // El servidor de desarrollo puede devolver respuestas vacías o truncadas bajo
