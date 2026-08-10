@@ -26,6 +26,41 @@ export function sanitizeApiErrorMessage(message, fallback = DEFAULT_SERVER_ERROR
   return cleaned || fallback;
 }
 
+/**
+ * Errores por campo de una respuesta 422 de Laravel: { campo: [mensajes] }.
+ * getApiErrorMessage solo devuelve un string, asi que el detalle por campo se
+ * perdia y el formulario nunca marcaba en rojo el campo culpable.
+ *
+ * @returns {Record<string, string> | null} un mensaje por campo, o null.
+ */
+export function getFieldErrors(error) {
+  if (error?.status !== 422) {
+    return null;
+  }
+
+  const errors = error?.data?.errors;
+
+  if (!errors || typeof errors !== 'object') {
+    return null;
+  }
+
+  const flattened = Object.entries(errors).reduce((accumulator, [field, messages]) => {
+    const message = Array.isArray(messages) ? messages[0] : messages;
+
+    if (typeof message === 'string' && message) {
+      accumulator[field] = message;
+    }
+
+    return accumulator;
+  }, {});
+
+  return Object.keys(flattened).length > 0 ? flattened : null;
+}
+
+export function isUnauthorized(error) {
+  return error?.status === 401;
+}
+
 export function getApiErrorMessage(error) {
   if (!error) {
     return DEFAULT_NETWORK_ERROR_MESSAGE;

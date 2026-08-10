@@ -1,4 +1,4 @@
-import { buildApiUrl, buildStorageUrl, sanitizeApiErrorMessage } from './api';
+import { buildApiUrl, buildStorageUrl, fetchJson, sanitizeApiErrorMessage } from './api';
 
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
@@ -36,6 +36,21 @@ export function extractAuthPayload(result) {
   const user = normalizeUser(rawUser);
 
   return { user, token };
+}
+
+/**
+ * Usuario autenticado con datos frescos del servidor.
+ *
+ * profile_photo_url es una URL firmada que caduca (60 min por defecto), asi que
+ * la copia guardada en el dispositivo deja de servir. Al arrancar la app se
+ * renueva desde aqui; un 401 significa que el token ya no es valido.
+ */
+export async function getMe(token) {
+  const data = await fetchJson('/api/me', {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  return normalizeUser(firstDefined(data?.user, data));
 }
 
 function buildUploadFile(image) {

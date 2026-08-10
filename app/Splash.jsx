@@ -21,7 +21,7 @@ export default function SplashScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      router.replace("/Login");
+      router.replace("/login");
     });
   }, [logoScale, opacity, router]);
 

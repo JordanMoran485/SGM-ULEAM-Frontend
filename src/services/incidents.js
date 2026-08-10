@@ -165,28 +165,71 @@ function appendIfPresent(formData, key, value) {
   }
 }
 
+// El backend solo acepta jpeg/jpg/png/webp y un maximo de 5 MB por imagen.
+export const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+const MIME_BY_EXTENSION = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+};
+
+function getExtension(image) {
+  const fromName = image?.fileName?.match(/\.([a-zA-Z0-9]+)$/)?.[1];
+  const fromUri = image?.uri?.match(/\.([a-zA-Z0-9]+)(?:\?|$)/)?.[1];
+
+  return (fromName || fromUri || 'jpg').toLowerCase();
+}
+
+/**
+ * Valida una foto contra las reglas del backend ANTES de gastar la subida.
+ * Devuelve null si es valida, o el mensaje de error a mostrar.
+ */
+export function validateImage(image) {
+  if (!image?.uri) return null;
+
+  const extension = getExtension(image);
+
+  if (!ALLOWED_IMAGE_EXTENSIONS.includes(extension)) {
+    return `Formato .${extension} no admitido. Usa JPG, PNG o WEBP.`;
+  }
+
+  if (typeof image.fileSize === 'number' && image.fileSize > MAX_IMAGE_BYTES) {
+    const mb = (image.fileSize / (1024 * 1024)).toFixed(1);
+    return `La foto pesa ${mb} MB y el maximo es 5 MB.`;
+  }
+
+  return null;
+}
+
 function buildUploadFile(image) {
   if (!image?.uri) return null;
-  const uri = image.uri;
-  const extensionMatch = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
-  const extension = extensionMatch?.[1]?.toLowerCase() || 'jpg';
+
+  const extension = getExtension(image);
   const normalizedExtension = extension === 'jpeg' ? 'jpg' : extension;
-  const type = image.mimeType || image.type || `image/${normalizedExtension}`;
-  return {
-    uri,
-    name: image.fileName || `incident-${Date.now()}.${normalizedExtension}`,
-    type,
-  };
+
+  // Se prioriza el MIME derivado de la extension: en Android el picker a veces
+  // entrega mimeType generico o ausente y Laravel rechaza la regla `mimes`.
+  const type = MIME_BY_EXTENSION[extension] || image.mimeType || image.type || 'image/jpeg';
+
+  const name = /\.[a-zA-Z0-9]+$/.test(image.fileName || '')
+    ? image.fileName
+    : `incident-${Date.now()}.${normalizedExtension}`;
+
+  return { uri: image.uri, name, type };
 }
 
 function appendImageFields(formData, image, image2) {
   const primaryFile = buildUploadFile(image);
   const secondaryFile = buildUploadFile(image2);
 
+  // Solo 'image' e 'image2': son los unicos campos que lee el backend. Antes se
+  // adjuntaba el mismo fichero tambien como 'photo' y 'file', triplicando los
+  // bytes subidos desde el movil sin ningun efecto en el servidor.
   if (primaryFile) {
     formData.append('image', primaryFile);
-    formData.append('photo', primaryFile);
-    formData.append('file', primaryFile);
   }
 
   if (secondaryFile) {
@@ -196,20 +239,27 @@ function appendImageFields(formData, image, image2) {
 
 export function createIncident(token, payload, onProgress) {
   return new Promise((resolve, reject) => {
+    // Sin token el backend responde 401 seguro: se corta antes de subir las fotos.
+    if (!token) {
+      const error = new Error('Tu sesión expiró. Vuelve a iniciar sesión.');
+      error.status = 401;
+      reject(error);
+      return;
+    }
+
     const formData = new FormData();
 
     appendIfPresent(formData, 'title', payload?.title);
     appendIfPresent(formData, 'description', payload?.description);
     appendIfPresent(formData, 'location', payload?.location);
-    appendIfPresent(formData, 'category', payload?.category);
-    appendIfPresent(formData, 'status', payload?.status || 'pending');
+    appendIfPresent(formData, 'priority', payload?.priority);
 
     appendImageFields(formData, payload?.image, payload?.image2);
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', buildApiUrl('/api/incidents'));
     xhr.setRequestHeader('Accept', 'application/json');
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
     if (onProgress && xhr.upload) {
       xhr.upload.onprogress = (e) => {

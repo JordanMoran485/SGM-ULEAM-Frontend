@@ -100,7 +100,7 @@ export default function Profile() {
 
     const handleLogout = () => {
         logout();
-        router.replace('/Login');
+        router.replace('/login');
     };
 
     return (
