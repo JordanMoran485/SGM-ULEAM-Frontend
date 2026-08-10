@@ -12,6 +12,9 @@ export function normalizePickedAsset(asset) {
         uri:      asset.uri,
         fileName: asset.fileName || asset.uri.split('/').pop() || 'incident-photo.jpg',
         mimeType: asset.mimeType || 'image/jpeg',
+        // Se conserva para poder rechazar fotos que superen el limite del
+        // backend (5 MB) antes de gastar la subida desde el movil.
+        fileSize: asset.fileSize,
     };
 }
 

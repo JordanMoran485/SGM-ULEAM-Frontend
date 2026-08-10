@@ -12,7 +12,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { uploadProfileImage } from '../services/auth';
+import { getMe, uploadProfileImage } from '../services/auth';
 import { buildIncidentStats, getIncidents } from '../services/incidents';
 import { getNotifications, markAllNotificationsAsRead, markNotificationAsRead } from '../services/notifications';
 import { savePushToken } from '../services/pushToken';
@@ -128,6 +128,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (restoredToken) {
           registerPushToken(restoredToken);
+
+          // La foto de perfil guardada trae una URL firmada ya caducada: se
+          // renueva pidiendo el usuario al servidor. Un 401 aqui significa que
+          // el token fue revocado, asi que se cierra la sesion.
+          getMe(restoredToken)
+            .then((freshUser) => {
+              if (!isMounted || !freshUser) return;
+              setUser(freshUser);
+              AsyncStorage.setItem(
+                AUTH_STORAGE_KEY,
+                JSON.stringify({ user: freshUser, token: restoredToken })
+              ).catch(() => {});
+            })
+            .catch((error: any) => {
+              if (!isMounted) return;
+              if (error?.status === 401) {
+                logout();
+              }
+            });
+
           getNotifications(restoredToken)
             .then((next) => {
               if (!isMounted) return;
@@ -298,6 +318,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (result?.user) {
       setUser(result.user);
+
+      // Persistir tambien: si no, al reabrir la app se restaura el usuario
+      // anterior desde AsyncStorage y reaparece la foto vieja.
+      AsyncStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({ user: result.user, token })
+      ).catch((error) => {
+        console.error('No se pudo guardar la sesión:', error);
+      });
     }
 
     return result;

@@ -4,13 +4,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useAppContext } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
-import { getApiErrorMessage } from '../../services/api';
-import { createIncident } from '../../services/incidents';
+import { getApiErrorMessage, getFieldErrors, isUnauthorized } from '../../services/api';
+import { createIncident, validateImage } from '../../services/incidents';
 import { normalizePickedAsset, buildLocationString } from './helpers';
+
+// Mapea los nombres de campo del backend a los del formulario.
+const FIELD_TO_FORM = {
+    title: 'title',
+    description: 'description',
+    location: 'location',
+    image: 'photo',
+    foto: 'photo',
+    image2: 'photo',
+};
 
 export function useReportIncident() {
     const router = useRouter();
-    const { token, refreshIncidents } = useAppContext();
+    const { token, refreshIncidents, logout } = useAppContext();
     const toast = useToast();
 
     const [title, setTitle] = useState('');
@@ -34,6 +44,26 @@ export function useReportIncident() {
             next[index] = asset;
             return next;
         });
+    };
+
+    // Rechaza formato/tamano en el momento de elegir la foto, no despues de
+    // haber subido varios MB para recibir un 422.
+    const acceptPickedAsset = (index, rawAsset) => {
+        const asset = normalizePickedAsset(rawAsset);
+        const problem = validateImage(asset);
+
+        if (problem) {
+            toast.warning('Foto no válida', problem);
+
+            if (index === 0) {
+                setErrors((current) => ({ ...current, photo: problem }));
+            }
+
+            return;
+        }
+
+        setPhoto(index, asset);
+        if (index === 0) clearError('photo');
     };
 
     const validate = () => {
@@ -63,8 +93,7 @@ export function useReportIncident() {
             });
 
             if (!result.canceled && result.assets?.[0]) {
-                setPhoto(index, normalizePickedAsset(result.assets[0]));
-                if (index === 0) clearError('photo');
+                acceptPickedAsset(index, result.assets[0]);
             }
         } finally {
             setLoadingPhoto(null);
@@ -86,8 +115,7 @@ export function useReportIncident() {
             });
 
             if (!result.canceled && result.assets?.[0]) {
-                setPhoto(index, normalizePickedAsset(result.assets[0]));
-                if (index === 0) clearError('photo');
+                acceptPickedAsset(index, result.assets[0]);
             }
         } finally {
             setLoadingPhoto(null);
@@ -125,6 +153,33 @@ export function useReportIncident() {
             toast.success('Incidencia reportada', 'La incidencia fue enviada correctamente.');
             router.replace('/(tabs)/Incidents');
         } catch (error) {
+            // Sesión muerta: avisar y llevar al login, no dejar al usuario
+            // reintentando el envío en bucle contra un token revocado.
+            if (isUnauthorized(error)) {
+                toast.error('Sesión expirada', 'Vuelve a iniciar sesión.');
+                logout();
+                router.replace('/login');
+                return;
+            }
+
+            // 422: marcar en rojo el campo concreto que rechazó el servidor.
+            const fieldErrors = getFieldErrors(error);
+
+            if (fieldErrors) {
+                const mapped = {};
+
+                Object.entries(fieldErrors).forEach(([field, message]) => {
+                    const formField = FIELD_TO_FORM[field];
+                    if (formField && !mapped[formField]) {
+                        mapped[formField] = message;
+                    }
+                });
+
+                setErrors((current) => ({ ...current, ...mapped }));
+                toast.error('Revisa el formulario', Object.values(fieldErrors)[0]);
+                return;
+            }
+
             toast.error('No se pudo reportar', getApiErrorMessage(error));
         } finally {
             setLoading(false);
