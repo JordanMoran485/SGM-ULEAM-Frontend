@@ -27,6 +27,7 @@ export default function Profile() {
     const displayName = [user?.name, user?.lastname].filter(Boolean).join(' ') || user?.name || 'Usuario ULEAM';
     const userEmail = user?.email || 'Sin correo registrado';
     const primaryRole = Array.isArray(user?.roles) ? user.roles[0]?.name : null;
+    const isSupervisor = primaryRole === 'supervisor' || user?.role === 'supervisor';
     const userRole = ({
         super_admin: 'Superadministrador',
         supervisor: 'Supervisor',
@@ -36,7 +37,8 @@ export default function Profile() {
         || (user?.facultad_id ? `Facultad #${user.facultad_id}` : 'No asignada');
     const supervisorLabel = user?.supervisor
         ? [user.supervisor.name, user.supervisor.lastname].filter(Boolean).join(' ')
-        : 'Kevin Moran';
+        : 'Sin asignar';
+    const assignedConserjes = Array.isArray(user?.assigned_conserjes) ? user.assigned_conserjes : [];
 
     const remoteProfileImage = useMemo(() => {
         if (!user?.profile_photo_url) return null;
@@ -194,6 +196,46 @@ export default function Profile() {
                         </View>
                     </View>
                 </View>
+
+                {isSupervisor ? (
+                    <>
+                        <Text style={styles.sectionLabel}>Conserjes asignados</Text>
+                        <View style={styles.card}>
+                            {assignedConserjes.length > 0 ? (
+                                assignedConserjes.map((conserje, index) => {
+                                    const fullName = [conserje?.name, conserje?.lastname].filter(Boolean).join(' ') || 'Sin nombre';
+                                    const facultyName = conserje?.facultad?.display_name || conserje?.facultad?.name || 'Sin facultad';
+
+                                    return (
+                                        <React.Fragment key={conserje?.id ?? `${fullName}-${index}`}>
+                                            <View style={styles.listRow}>
+                                                <View style={styles.iconBox}>
+                                                    <MaterialCommunityIcons name="account-hard-hat-outline" size={18} color="#4A6CF7" />
+                                                </View>
+                                                <View style={styles.listContent}>
+                                                    <Text style={styles.listLabel}>Conserje</Text>
+                                                    <Text style={styles.listValue}>{fullName}</Text>
+                                                    <Text style={styles.listSubValue}>{facultyName}</Text>
+                                                </View>
+                                            </View>
+                                            {index < assignedConserjes.length - 1 ? <View style={styles.divider} /> : null}
+                                        </React.Fragment>
+                                    );
+                                })
+                            ) : (
+                                <View style={styles.listRow}>
+                                    <View style={styles.iconBox}>
+                                        <MaterialCommunityIcons name="account-group-outline" size={18} color="#4A6CF7" />
+                                    </View>
+                                    <View style={styles.listContent}>
+                                        <Text style={styles.listLabel}>Conserjes asignados</Text>
+                                        <Text style={styles.listValue}>No hay conserjes asignados</Text>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    </>
+                ) : null}
 
                 <TouchableOpacity onPress={handleLogout} activeOpacity={0.85} style={styles.logoutWrapper}>
                     <LinearGradient
@@ -369,6 +411,11 @@ const styles = StyleSheet.create({
         color: '#1A1F36',
         fontSize: 14,
         fontWeight: '700',
+    },
+    listSubValue: {
+        color: '#667085',
+        fontSize: 12,
+        fontWeight: '600',
     },
     divider: {
         height: 1,
